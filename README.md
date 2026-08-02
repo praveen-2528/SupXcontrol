@@ -1,6 +1,13 @@
-# 🎮 SuperXontrol
+```text
+  ____                        _  __            _             _ 
+ / ___| _   _ _ __   ___ _ __| |/ /___  _ __ | |_ _ __ ___ | |
+ \___ \| | | | '_ \ / _ \ '__| ' // _ \| '_ \| __| '__/ _ \| |
+  ___) | |_| | |_) |  __/ |  | . \ (_) | | | | |_| | | (_) | |
+ |____/ \__,_| .__/ \___|_|  |_|\_\___/|_| |_|\__|_|  \___/|_|
+             |_|                                              
+```
 
-**Turn your phone into a wireless trackpad + keyboard for your laptop.**
+**Turn your phone into a futuristic wireless trackpad + keyboard for your laptop.**
 
 No bending over. No wires. Just open your phone's browser and take control.
 
@@ -38,9 +45,14 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8765
 | Swipe | Move cursor |
 | Single tap | Left click |
 | Two-finger tap | Right click |
-| Three-finger tap | Middle click |
+| Three-finger tap | Open Start Menu |
 | Two-finger swipe | Scroll |
 | Long press | Right click |
+| **Three-finger swipe up** | Task View (Win + Tab) |
+| **Three-finger swipe down** | Show Desktop (Win + D) |
+| **Three-finger swipe left/right** | Switch App (Alt + Tab) |
+| **Four-finger swipe up/down** | Volume Up / Volume Down |
+| **Four-finger swipe left/right** | Media Prev / Media Next |
 
 ### Keyboard Mode
 - **Tap** keys to type
@@ -109,7 +121,7 @@ SuperXontrol runs on your **local network only**. Anyone on the same WiFi can co
 | Component | Technology |
 |---|---|
 | Server | Python FastAPI + uvicorn |
-| Input Control | pynput |
+| Input Control | Win32 API (ctypes SendInput) |
 | Communication | Binary WebSocket (< 10ms latency) |
 | Phone UI | HTML5 + CSS3 + Vanilla JS |
 | PWA | Service Worker + Manifest |
