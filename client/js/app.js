@@ -44,6 +44,11 @@ class WSManager {
         if (type === 0x06) { // Haptic
           const pattern = view.getUint8(1);
           this.haptic(pattern);
+        } else if (type === 0xFE) { // Connection Ack
+          const status = view.getUint8(1);
+          if (status === 1) { // Rejected
+            if (this.callbacks.onAuthFailed) this.callbacks.onAuthFailed();
+          }
         } else if (type === 0xFF) { // Ping
           // Could send pong if needed
         }
@@ -171,11 +176,10 @@ class App {
     this.setupEvents();
     this.setupMediaControls();
     
-    // Auto-connect if possible
+    // Auto-fill IP if possible
     if (window.location.protocol.startsWith('http')) {
-      const wsUrl = `ws://${window.location.host}/ws`;
       document.getElementById('ip-input').value = window.location.host;
-      this.connect(wsUrl);
+      // Do not auto-connect; user must enter PIN
     }
   }
   
@@ -208,12 +212,19 @@ class App {
     const connectBtn = document.getElementById('connect-btn');
     connectBtn.addEventListener('click', () => {
       let url = document.getElementById('ip-input').value.trim();
+      let pin = document.getElementById('pin-input').value.trim();
+      
+      if (!pin) {
+        alert("Please enter the 4-digit PIN shown on your computer.");
+        return;
+      }
+      
       // Strip protocols if user typed them
       url = url.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
       // Remove trailing /ws if present
       url = url.replace(/\/ws\/?$/, '');
-      // Build proper ws URL
-      url = `ws://${url}/ws`;
+      // Build proper ws URL with PIN
+      url = `ws://${url}/ws?pin=${pin}`;
       this.connect(url);
     });
     
@@ -234,6 +245,13 @@ class App {
       document.getElementById('header-status-text').textContent = 'Disconnected';
       document.getElementById('setting-status').textContent = 'Disconnected';
       document.getElementById('setting-status').style.color = 'var(--accent-red)';
+    });
+    
+    this.ws.on('onAuthFailed', () => {
+      this.ws.disconnect();
+      alert("Invalid PIN. Please check the PIN on your computer screen and try again.");
+      document.getElementById('connection-status').textContent = 'Invalid PIN';
+      document.getElementById('pin-input').value = '';
     });
     
     // Settings

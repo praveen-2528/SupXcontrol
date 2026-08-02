@@ -5,6 +5,7 @@ import io
 import os
 import qrcode
 import webbrowser
+import random
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +39,7 @@ def get_local_ip():
 
 local_ip = get_local_ip()
 server_url = f"http://{local_ip}:{PORT}"
+SERVER_PIN = f"{random.randint(1000, 9999):04d}"
 
 @app.on_event("startup")
 async def startup_event():
@@ -45,6 +47,7 @@ async def startup_event():
     print(f"  [*] SuperXontrol Server Started!")
     print(f"  [>] Connect here: {server_url}/connect")
     print(f"  [i] Make sure your phone is on the same Wi-Fi network.")
+    print(f"  [🔑] YOUR PIN CODE IS: {SERVER_PIN}")
     print(f"="*50 + "\n")
     try:
         webbrowser.open(f"{server_url}/connect")
@@ -122,12 +125,22 @@ async def connect_page():
     return HTMLResponse(content=html)
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, pin: str = None):
     await websocket.accept()
     client_host = websocket.client.host if websocket.client else "unknown"
-    print(f"  [+] Client connected from {client_host}")
+    
+    if pin != SERVER_PIN:
+        print(f"  [!] Rejected connection from {client_host}: Invalid PIN '{pin}'")
+        try:
+            await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x01)) # 0x01 = rejected
+            await websocket.close(code=1008)
+        except:
+            pass
+        return
+
+    print(f"  [+] Client authenticated and connected from {client_host}")
     try:
-        await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x00))
+        await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x00)) # 0x00 = ok
         print(f"  [+] Sent connection ack to {client_host}")
     except Exception as e:
         print(f"  [!] Error sending ack: {e}")
