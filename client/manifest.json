@@ -1,0 +1,17 @@
+{
+  "name": "SuperXontrol",
+  "short_name": "SXontrol",
+  "description": "Control your laptop from your phone",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

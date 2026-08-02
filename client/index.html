@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>SuperXontrol</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Connection Screen -->
+  <div id="connection-screen" class="screen active">
+    <div class="glass-card">
+      <h1 class="logo">Super<span class="accent">X</span>ontrol</h1>
+      <div class="pulse-ring"></div>
+      <p id="connection-status">Disconnected</p>
+      <input type="text" id="ip-input" placeholder="e.g. 192.168.1.5:8765">
+      <button id="connect-btn" class="btn-primary">Connect</button>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="main-app" class="screen">
+    <!-- Status Bar -->
+    <header class="status-bar">
+      <div class="status-indicator">
+        <div class="dot active" id="header-status-dot"></div>
+        <span id="header-status-text">Connected</span>
+      </div>
+      <h2 class="app-title">SuperXontrol</h2>
+      <button id="settings-btn" class="icon-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </header>
+
+    <!-- Content Area -->
+    <main id="content-area">
+      <!-- Trackpad Mode -->
+      <section id="mode-trackpad" class="mode-view active">
+        <div id="trackpad-surface">
+          <div class="grid-overlay"></div>
+          <div id="touch-indicator"></div>
+        </div>
+        <div class="mouse-buttons">
+          <button id="btn-left-click" class="mouse-btn left">L</button>
+          <button id="btn-middle-click" class="mouse-btn middle">M</button>
+          <button id="btn-right-click" class="mouse-btn right">R</button>
+        </div>
+      </section>
+
+      <!-- Keyboard Mode -->
+      <section id="mode-keyboard" class="mode-view">
+        <div class="text-preview">
+          <span id="preview-text"></span>
+          <span class="cursor">|</span>
+        </div>
+        <div id="keyboard-container">
+          <canvas id="glide-canvas"></canvas>
+          <div id="keyboard-layout"></div>
+        </div>
+      </section>
+
+      <!-- Media Mode -->
+      <section id="mode-media" class="mode-view">
+        <div class="media-container">
+          <div class="media-art-placeholder">
+            <div class="art-gradient"></div>
+            <div class="art-glow"></div>
+          </div>
+          <div class="media-controls-main">
+            <button id="btn-prev" class="media-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+            <button id="btn-play-pause" class="media-btn large"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+            <button id="btn-next" class="media-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+          </div>
+          <div class="volume-controls">
+            <button id="btn-vol-down" class="media-btn small"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 12A4.5 4.5 0 0016 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg></button>
+            <button id="btn-mute" class="media-btn small"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM3 5.27L5.73 8H3v8h4l5 5V3L9 6.27v1.46z"/></svg></button>
+            <button id="btn-vol-up" class="media-btn small"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L9 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+      <div class="tab-active-indicator"></div>
+      <button class="tab-btn active" data-target="mode-trackpad">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        <span>Trackpad</span>
+      </button>
+      <button class="tab-btn" data-target="mode-keyboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="6" y1="12" x2="6.01" y2="12"></line><line x1="10" y1="12" x2="10.01" y2="12"></line><line x1="14" y1="12" x2="14.01" y2="12"></line><line x1="18" y1="12" x2="18.01" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+        <span>Keyboard</span>
+      </button>
+      <button class="tab-btn" data-target="mode-media">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+        <span>Media</span>
+      </button>
+    </nav>
+
+    <!-- Settings Panel -->
+    <aside id="settings-panel">
+      <div class="settings-header">
+        <h3>Settings</h3>
+        <button id="close-settings-btn" class="icon-btn">&times;</button>
+      </div>
+      <div class="settings-content">
+        <div class="setting-group">
+          <label for="sensitivity">Trackpad Sensitivity: <span id="sensitivity-val">1.0</span>x</label>
+          <input type="range" id="sensitivity" min="0.1" max="3.0" step="0.1" value="1.0">
+        </div>
+        <div class="setting-group">
+          <label for="scroll-speed">Scroll Speed: <span id="scroll-val">1.0</span>x</label>
+          <input type="range" id="scroll-speed" min="0.1" max="3.0" step="0.1" value="1.0">
+        </div>
+        <div class="setting-group">
+          <p>Status: <span class="accent-text" id="setting-status">Connected</span></p>
+          <button id="disconnect-btn" class="btn-secondary">Disconnect</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

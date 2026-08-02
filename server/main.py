@@ -1,0 +1,227 @@
+import socket
+import struct
+import json
+import io
+import os
+import qrcode
+import webbrowser
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, HTMLResponse
+import uvicorn
+
+from config import HOST, PORT
+from input_controller import InputController
+
+app = FastAPI(title="SuperXontrol Server")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+input_controller = InputController()
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return '127.0.0.1'
+
+local_ip = get_local_ip()
+server_url = f"http://{local_ip}:{PORT}"
+
+@app.on_event("startup")
+async def startup_event():
+    print(f"\n" + "="*50)
+    print(f"  [*] SuperXontrol Server Started!")
+    print(f"  [>] Connect here: {server_url}/connect")
+    print(f"  [i] Make sure your phone is on the same Wi-Fi network.")
+    print(f"="*50 + "\n")
+    try:
+        webbrowser.open(f"{server_url}/connect")
+    except:
+        pass
+
+@app.get("/qr")
+async def get_qr_code():
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(server_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+@app.get("/api/info")
+async def get_info():
+    return {
+        "ip": local_ip,
+        "port": PORT,
+        "url": server_url,
+        "hostname": socket.gethostname()
+    }
+
+@app.get("/connect")
+async def connect_page():
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Connect to SuperXontrol</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #121212;
+                color: #ffffff;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+            }}
+            .card {{
+                background-color: #1e1e1e;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+                text-align: center;
+            }}
+            h1 {{ margin-top: 0; color: #bb86fc; }}
+            img {{ border-radius: 8px; margin: 1rem 0; }}
+            .url {{ font-size: 1.2rem; font-family: monospace; background: #2c2c2c; padding: 10px; border-radius: 6px; }}
+            p {{ color: #b3b3b3; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>📱 SuperXontrol</h1>
+            <p>Scan this QR code with your phone to connect.</p>
+            <img src="/qr" alt="QR Code" width="250" height="250" />
+            <p>Or open this URL on your phone:</p>
+            <div class="url">{server_url}</div>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    client_host = websocket.client.host if websocket.client else "unknown"
+    print(f"  [+] Client connected from {client_host}")
+    try:
+        await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x00))
+        print(f"  [+] Sent connection ack to {client_host}")
+    except Exception as e:
+        print(f"  [!] Error sending ack: {e}")
+        return
+
+    msg_count = 0
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            if not data:
+                continue
+                
+            msg_type = data[0]
+            msg_count += 1
+            
+            if msg_type == 0x01: # Mouse Move
+                if len(data) >= 5:
+                    dx, dy = struct.unpack('>hh', data[1:5])
+                    if msg_count <= 5 or msg_count % 100 == 0:
+                        print(f"  [mouse] move dx={dx} dy={dy} (msg #{msg_count})")
+                    input_controller.move_mouse(dx, dy)
+            elif msg_type == 0x02: # Mouse Click
+                if len(data) >= 3:
+                    button = data[1]
+                    action = data[2]
+                    print(f"  [click] button={button} action={action}")
+                    input_controller.click_mouse(button, action)
+                    try:
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 0))
+                    except:
+                        pass
+            elif msg_type == 0x03: # Mouse Scroll
+                if len(data) >= 5:
+                    dx, dy = struct.unpack('>hh', data[1:5])
+                    print(f"  [scroll] dx={dx} dy={dy}")
+                    input_controller.scroll_mouse(dx, dy)
+            elif msg_type == 0x04: # Key Press
+                if len(data) >= 3:
+                    key_type = data[1]
+                    modifiers = data[2]
+                    print(f"  [key] type=0x{key_type:02x} modifiers=0x{modifiers:02x}")
+                    input_controller.press_key(key_type, modifiers)
+            elif msg_type == 0x05: # Key Text
+                if len(data) > 1:
+                    try:
+                        text = data[1:].decode('utf-8')
+                        print(f"  [text] '{text}'")
+                        input_controller.type_text(text)
+                    except UnicodeDecodeError:
+                        print("  [!] Failed to decode text")
+            elif msg_type == 0x07: # Media Control
+                if len(data) >= 2:
+                    action = data[1]
+                    print(f"  [media] action=0x{action:02x}")
+                    input_controller.media_control(action)
+            elif msg_type == 0x08: # Gesture Shortcut
+                if len(data) >= 2:
+                    gesture_id = data[1]
+                    GESTURE_NAMES = {
+                        0x01: '3F-swipe-up (Task View)',
+                        0x02: '3F-swipe-down (Show Desktop)',
+                        0x03: '3F-swipe-left (Prev App)',
+                        0x04: '3F-swipe-right (Next App)',
+                        0x05: '3F-tap (Start Menu)',
+                        0x06: '4F-swipe-up (Vol Up)',
+                        0x07: '4F-swipe-down (Vol Down)',
+                        0x08: '4F-swipe-left (Media Prev)',
+                        0x09: '4F-swipe-right (Media Next)',
+                    }
+                    print(f"  [gesture] {GESTURE_NAMES.get(gesture_id, f'unknown 0x{gesture_id:02x}')}")
+                    input_controller.gesture_shortcut(gesture_id)
+                    try:
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 3))  # double haptic
+                    except:
+                        pass
+            elif msg_type == 0xFF: # Ping/Pong
+                try:
+                    await websocket.send_bytes(struct.pack('>B', 0xFF))
+                except:
+                    pass
+            else:
+                print(f"  [?] Unknown message type: 0x{msg_type:02x}")
+                
+    except WebSocketDisconnect:
+        print(f"  [-] Client {client_host} disconnected (after {msg_count} messages)")
+    except Exception as e:
+        print(f"  [!] WebSocket error: {e}")
+
+# Mount client directory if it exists
+client_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "client")
+if os.path.isdir(client_dir):
+    app.mount("/", StaticFiles(directory=client_dir, html=True), name="client")
+else:
+    print(f"Warning: Client directory not found at {client_dir}")
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host=HOST, port=PORT, log_level="info")
