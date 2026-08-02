@@ -313,8 +313,13 @@ class InputController:
         """Press a special key with optional modifiers."""
         vk = VK_MAP.get(key_type)
         if vk is None:
-            print(f"  [!] Unknown key type: {hex(key_type)}")
-            return
+            # If not in VK_MAP, assume it's a direct character code (A-Z, 0-9)
+            # Windows virtual key codes for A-Z and 0-9 match their ASCII values exactly
+            if (0x30 <= key_type <= 0x39) or (0x41 <= key_type <= 0x5A) or key_type == 0x20:
+                vk = key_type
+            else:
+                print(f"  [!] Unknown key type: {hex(key_type)}")
+                return
 
         try:
             inputs = []

@@ -8,24 +8,27 @@ export class Keyboard {
     
     this.mode = 'lower'; // lower, upper, numbers
     this.shiftActive = false;
+    this.ctrlActive = false;
+    this.winActive = false;
+    this.altActive = false;
     
     this.ROWS_LOWER = [
       ['q','w','e','r','t','y','u','i','o','p'],
       ['a','s','d','f','g','h','j','k','l'],
       ['SHIFT','z','x','c','v','b','n','m','BACKSPACE'],
-      ['NUMBERS','SPACE','ENTER']
+      ['NUM','CTRL','WIN','ALT','SPACE','ENTER']
     ];
     this.ROWS_UPPER = [
       ['Q','W','E','R','T','Y','U','I','O','P'],
       ['A','S','D','F','G','H','J','K','L'],
       ['SHIFT','Z','X','C','V','B','N','M','BACKSPACE'],
-      ['NUMBERS','SPACE','ENTER']
+      ['NUM','CTRL','WIN','ALT','SPACE','ENTER']
     ];
     this.ROWS_NUMBERS = [
       ['1','2','3','4','5','6','7','8','9','0'],
       ['-','/',':',';','(',')','$','&','@','"'],
-      ['LOWER','.',',','?','!','\'','BACKSPACE'],
-      ['LOWER','SPACE','ENTER']
+      ['ABC','.','_','?','!','\'','BACKSPACE'],
+      ['ABC','CTRL','WIN','ALT','SPACE','ENTER']
     ];
     
     this.glidePath = [];
@@ -47,7 +50,6 @@ export class Keyboard {
   }
   
   render() {
-    // Remove only keyboard rows, keeping canvas intact
     this.container.querySelectorAll('.kb-row').forEach(r => r.remove());
     
     let rows = this.ROWS_LOWER;
@@ -66,19 +68,25 @@ export class Keyboard {
           keyEl.classList.add('special');
           keyEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
           if (this.shiftActive) keyEl.classList.add('active-toggle');
+        } else if (key === 'CTRL' || key === 'WIN' || key === 'ALT') {
+          keyEl.classList.add('special', 'modifier');
+          keyEl.textContent = key;
+          if (key === 'CTRL' && this.ctrlActive) keyEl.classList.add('active-toggle');
+          if (key === 'WIN' && this.winActive) keyEl.classList.add('active-toggle');
+          if (key === 'ALT' && this.altActive) keyEl.classList.add('active-toggle');
         } else if (key === 'BACKSPACE') {
           keyEl.classList.add('special');
           keyEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6"/></svg>';
         } else if (key === 'ENTER') {
           keyEl.classList.add('special');
-          keyEl.textContent = 'return';
+          keyEl.textContent = 'ret';
         } else if (key === 'SPACE') {
           keyEl.classList.add('space');
           keyEl.textContent = 'space';
-        } else if (key === 'NUMBERS') {
+        } else if (key === 'NUM') {
           keyEl.classList.add('special');
           keyEl.textContent = '123';
-        } else if (key === 'LOWER') {
+        } else if (key === 'ABC') {
           keyEl.classList.add('special');
           keyEl.textContent = 'ABC';
         } else {
@@ -94,42 +102,61 @@ export class Keyboard {
   handleKey(key) {
     if (navigator.vibrate) navigator.vibrate(15);
     
+    // Handle Modifiers
     if (key === 'SHIFT') {
       this.shiftActive = !this.shiftActive;
       this.mode = this.shiftActive ? 'upper' : 'lower';
       this.render();
       return;
     }
-    if (key === 'NUMBERS') {
+    if (key === 'CTRL') { this.ctrlActive = !this.ctrlActive; this.render(); return; }
+    if (key === 'WIN') { this.winActive = !this.winActive; this.render(); return; }
+    if (key === 'ALT') { this.altActive = !this.altActive; this.render(); return; }
+    
+    // Mode toggles
+    if (key === 'NUM') {
       this.mode = 'numbers';
       this.shiftActive = false;
       this.render();
       return;
     }
-    if (key === 'LOWER') {
+    if (key === 'ABC') {
       this.mode = 'lower';
       this.shiftActive = false;
       this.render();
       return;
     }
     
+    const mods = (this.ctrlActive ? 1 : 0) | (this.altActive ? 2 : 0) | (this.shiftActive ? 4 : 0) | (this.winActive ? 8 : 0);
+    const hasMods = (this.ctrlActive || this.altActive || this.winActive);
+    
     if (key === 'BACKSPACE') {
-      this.ws.sendKeyPress(0x02, 0); // Backspace
+      this.ws.sendKeyPress(0x02, mods);
       this.preview.textContent = this.preview.textContent.slice(0, -1);
     } else if (key === 'ENTER') {
-      this.ws.sendKeyPress(0x01, 0); // Enter
+      this.ws.sendKeyPress(0x01, mods);
       this.preview.textContent = '';
     } else if (key === 'SPACE') {
-      this.ws.sendKeyText(' ');
+      if (hasMods) this.ws.sendKeyPress(0x20, mods); // send space as shortcut
+      else this.ws.sendKeyText(' ');
       this.preview.textContent += ' ';
     } else {
-      this.ws.sendKeyText(key);
+      // For shortcuts like Ctrl+C, send the character code via sendKeyPress
+      if (hasMods) {
+        const charCode = key.toUpperCase().charCodeAt(0);
+        this.ws.sendKeyPress(charCode, mods);
+      } else {
+        this.ws.sendKeyText(key);
+      }
       this.preview.textContent += key;
     }
     
-    // Auto unshift after char
-    if (this.shiftActive && key !== 'SHIFT' && key !== 'BACKSPACE') {
+    // Auto un-toggle modifiers after use
+    if (this.shiftActive || this.ctrlActive || this.altActive || this.winActive) {
       this.shiftActive = false;
+      this.ctrlActive = false;
+      this.altActive = false;
+      this.winActive = false;
       this.mode = 'lower';
       this.render();
     }
