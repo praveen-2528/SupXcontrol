@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperXontrol</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card-bg: #12121a;
+            --accent: #00d4ff;
+            --violet: #8b5cf6;
+            --text-main: #f8f8f2;
+            --text-muted: #a1a1aa;
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(18, 18, 26, 0.6);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.1), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 212, 255, 0.1), transparent 25%);
+        }
+
+        /* Top Bar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            background: linear-gradient(135deg, var(--accent), var(--violet));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .connection-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .info-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .qr-code {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .qr-code:hover {
+            transform: scale(1.1);
+        }
+
+        /* Main Grid */
+        .container {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1440px;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .topbar {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+
+        .card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Shared Files */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .file-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: var(--border);
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .file-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .btn-download {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Upload Area */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255,255,255,0.01);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            flex: 1;
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--violet);
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            color: var(--text-muted);
+        }
+
+        .upload-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .upload-text span {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--violet));
+            transition: width 0.2s ease;
+        }
+
+        /* Clipboard */
+        .clipboard-area {
+            width: 100%;
+            height: 150px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        .clipboard-area:focus {
+            border-color: var(--violet);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .btn-primary {
+            background: var(--violet);
+            border-color: var(--violet);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #7c3aed;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border);
+            background: var(--glass);
+        }
+
+        /* Toast */
+        #toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: slideIn 0.3s ease forwards;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+        
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+        
+        .fade-out {
+            animation: slideOut 0.3s ease forwards;
+        }
+        
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="logo">Super<span>X</span>ontrol</div>
+        <div class="connection-info">
+            <div class="info-pill" id="ip-info">
+                <span class="skeleton" style="width: 100px; height: 16px;"></span>
+            </div>
+            <div class="info-pill" id="pin-info">
+                <span class="skeleton" style="width: 80px; height: 16px;"></span>
+            </div>
+            <img src="/qr" alt="QR Code" class="qr-code" id="qr-code" onerror="this.style.display='none'">
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Shared Files Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📁 Shared Files</h2>
+                <button class="btn" style="padding: 0.25rem 0.5rem; flex: 0;" onclick="fetchFiles()" title="Refresh">
+                    ↻
+                </button>
+            </div>
+            <div class="file-list" id="file-list">
+                <!-- Populated by JS -->
+                <div class="empty-state skeleton" style="height: 100px; border-radius: 8px;"></div>
+                <div class="empty-state skeleton" style="height: 100px; border-radius: 8px;"></div>
+            </div>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📤 Send to Phone</h2>
+            </div>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">☁️</div>
+                <div class="upload-text">Drag & drop files here<br>or <span>click to browse</span></div>
+                <input type="file" id="file-input" hidden multiple>
+            </div>
+            <div class="progress-bar-container" id="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- Clipboard Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📋 Clipboard Sync</h2>
+                <button class="btn" style="padding: 0.25rem 0.5rem; flex: 0;" onclick="fetchClipboard()" title="Refresh">
+                    ↻
+                </button>
+            </div>
+            <textarea class="clipboard-area" id="clipboard-text" placeholder="Loading clipboard..."></textarea>
+            <div class="btn-group">
+                <button class="btn" onclick="document.getElementById('clipboard-text').value = ''">Clear</button>
+                <button class="btn btn-primary" onclick="setClipboard()">Sync to Laptop</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer" id="footer-text">
+        SuperXontrol v2.0 — Running on <span class="skeleton" style="width: 80px; height: 12px; display: inline-block;"></span>
+    </footer>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // Utilities
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function formatRelativeTime(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'Just now';
+            
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) return \`\${diffInMinutes} minute\${diffInMinutes > 1 ? 's' : ''} ago\`;
+            
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) return \`\${diffInHours} hour\${diffInHours > 1 ? 's' : ''} ago\`;
+            
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 30) return \`\${diffInDays} day\${diffInDays > 1 ? 's' : ''} ago\`;
+            
+            return date.toLocaleDateString();
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = \`toast \${type}\`;
+            
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            toast.innerHTML = \`<span>\${icon}</span> <span>\${message}</span>\`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // API Calls
+        async function fetchInfo() {
+            try {
+                const [infoRes, portalRes] = await Promise.all([
+                    fetch('/api/info').catch(() => null),
+                    fetch('/api/portal-info').catch(() => null)
+                ]);
+                
+                let ip = 'Unknown IP';
+                let port = '';
+                let hostname = 'Unknown Host';
+                let pin = '----';
+
+                if (infoRes && infoRes.ok) {
+                    const info = await infoRes.json();
+                    ip = info.ip || ip;
+                    port = info.port ? \`:\${info.port}\` : '';
+                    hostname = info.hostname || hostname;
+                }
+                
+                if (portalRes && portalRes.ok) {
+                    const portal = await portalRes.json();
+                    pin = portal.pin || pin;
+                }
+
+                document.getElementById('ip-info').innerHTML = \`🌐 \${ip}\${port}\`;
+                document.getElementById('pin-info').innerHTML = \`🔑 PIN: <strong>\${pin}</strong>\`;
+                document.getElementById('footer-text').innerHTML = \`SuperXontrol v2.0 — Running on \${hostname}\`;
+                
+                // Set QR code src relative to current origin to avoid caching issues if needed
+                document.getElementById('qr-code').src = \`/qr?t=\${new Date().getTime()}\`;
+                
+            } catch (err) {
+                console.error("Failed to fetch info", err);
+            }
+        }
+
+        async function fetchFiles() {
+            try {
+                const res = await fetch('/api/files');
+                if (!res.ok) throw new Error('Failed to fetch files');
+                const files = await res.json();
+                
+                const list = document.getElementById('file-list');
+                
+                if (files.length === 0) {
+                    list.innerHTML = \`<div class="empty-state">No files shared yet</div>\`;
+                    return;
+                }
+                
+                list.innerHTML = files.map(file => \`
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-name" title="\${file.name}">\${file.name}</span>
+                            <span class="file-meta">\${formatBytes(file.size)} • \${formatRelativeTime(file.modified)}</span>
+                        </div>
+                        <a href="/api/download/\${encodeURIComponent(file.name)}" class="btn-download" download="\${file.name}">↓</a>
+                    </div>
+                \`).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('file-list').innerHTML = \`<div class="empty-state">Failed to load files</div>\`;
+            }
+        }
+
+        async function fetchClipboard() {
+            try {
+                const res = await fetch('/api/clipboard');
+                if (!res.ok) throw new Error('Failed to fetch clipboard');
+                const data = await res.json();
+                const textarea = document.getElementById('clipboard-text');
+                
+                // Only update if not currently focused by user
+                if (document.activeElement !== textarea) {
+                    textarea.value = data.text || '';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function setClipboard() {
+            const text = document.getElementById('clipboard-text').value;
+            try {
+                const res = await fetch('/api/clipboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                if (!res.ok) throw new Error('Failed to sync clipboard');
+                showToast('Clipboard synced successfully', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to sync clipboard', 'error');
+            }
+        }
+
+        // Upload functionality
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('file', files[i]);
+            }
+            
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload-to-phone', true);
+            
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + '%';
+                }
+            };
+            
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    showToast('File(s) uploaded successfully', 'success');
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBar.style.width = '0%';
+                        fetchFiles(); // Refresh file list after upload
+                    }, 1000);
+                } else {
+                    showToast('Upload failed', 'error');
+                    progressContainer.style.display = 'none';
+                }
+            };
+            
+            xhr.onerror = () => {
+                showToast('Upload failed', 'error');
+                progressContainer.style.display = 'none';
+            };
+            
+            xhr.send(formData);
+        }
+
+        // Setup Drag & Drop
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        });
+
+        // Initialization & Intervals
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchInfo();
+            fetchFiles();
+            fetchClipboard();
+            
+            setInterval(fetchFiles, 10000); // 10s
+            setInterval(fetchClipboard, 5000); // 5s
+        });
+    </script>
+</body>
+</html>
