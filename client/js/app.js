@@ -51,6 +51,10 @@ class WSManager {
         } else if (type === 0x12) { // File Ack
           const status = view.getUint8(1);
           if (this.callbacks.onFileAck) this.callbacks.onFileAck(status);
+        } else if (type === 0x13) { // File Notification from Laptop
+          const nameBytes = new Uint8Array(e.data, 1);
+          const name = new TextDecoder().decode(nameBytes);
+          if (this.callbacks.onFileNotification) this.callbacks.onFileNotification(name);
         } else if (type === 0xFE) { // Connection Ack
           const status = view.getUint8(1);
           if (status === 1) {
@@ -428,6 +432,12 @@ class App {
       } else {
         this.showToast('File transfer failed.');
       }
+    });
+
+    // Handle file received on laptop notification
+    this.ws.on('onFileNotification', (filename) => {
+      this.showToast('File received: ' + filename);
+      if (navigator.vibrate) navigator.vibrate([10, 30, 10, 30]);
     });
   }
   

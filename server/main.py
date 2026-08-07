@@ -6,10 +6,12 @@ import os
 import qrcode
 import webbrowser
 import random
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from pathlib import Path
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse
 import uvicorn
 
 from config import HOST, PORT
@@ -124,8 +126,118 @@ async def connect_page():
     """
     return HTMLResponse(content=html)
 
+# ── Shared files directory ──
+SHARED_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "SuperXontrol_Files")
+os.makedirs(SHARED_DIR, exist_ok=True)
+
+# Track connected phone WebSocket for sending files to phone
+connected_phone = None
+
+@app.get("/portal")
+async def portal_page():
+    portal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "portal.html")
+    if os.path.exists(portal_path):
+        with open(portal_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Portal not found</h1>", status_code=404)
+
+@app.get("/api/portal-info")
+async def portal_info():
+    return {
+        "pin": SERVER_PIN,
+        "files_dir": SHARED_DIR,
+        "url": server_url,
+        "hostname": socket.gethostname()
+    }
+
+@app.get("/api/files")
+async def list_files():
+    files = []
+    if os.path.isdir(SHARED_DIR):
+        for fname in os.listdir(SHARED_DIR):
+            fpath = os.path.join(SHARED_DIR, fname)
+            if os.path.isfile(fpath):
+                stat = os.stat(fpath)
+                files.append({
+                    "name": fname,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                })
+    files.sort(key=lambda x: x["modified"], reverse=True)
+    return files
+
+@app.get("/api/download/{filename}")
+async def download_file(filename: str):
+    fpath = os.path.join(SHARED_DIR, os.path.basename(filename))
+    if os.path.isfile(fpath):
+        return FileResponse(fpath, filename=filename)
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
+@app.post("/api/upload-to-phone")
+async def upload_to_phone(file: UploadFile = File(...)):
+    """Upload a file from the laptop portal to the shared folder (and notify phone)."""
+    try:
+        fname = os.path.basename(file.filename)
+        fpath = os.path.join(SHARED_DIR, fname)
+        
+        # Handle duplicate names
+        base, ext = os.path.splitext(fname)
+        counter = 1
+        while os.path.exists(fpath):
+            fpath = os.path.join(SHARED_DIR, f"{base}_{counter}{ext}")
+            fname = f"{base}_{counter}{ext}"
+            counter += 1
+        
+        content = await file.read()
+        with open(fpath, "wb") as f:
+            f.write(content)
+        
+        print(f"  [portal] File uploaded: {fname} ({len(content)} bytes)")
+        
+        # Notify connected phone via WebSocket
+        if connected_phone:
+            try:
+                # Send file-available notification: 0x13 + filename UTF-8
+                notify = bytes([0x13]) + fname.encode('utf-8')
+                await connected_phone.send_bytes(notify)
+            except:
+                pass
+        
+        return {"status": "ok", "filename": fname, "size": len(content)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/clipboard")
+async def get_clipboard():
+    try:
+        text = input_controller.get_clipboard()
+        return {"text": text or ""}
+    except Exception as e:
+        return {"text": "", "error": str(e)}
+
+@app.post("/api/clipboard")
+async def set_clipboard_api():
+    """Set clipboard from portal. Expects JSON body with 'text' field."""
+    import sys
+    from starlette.requests import Request
+    # This is a workaround - we need the raw request
+    return {"status": "ok"}
+
+# Override with proper request handling
+@app.api_route("/api/clipboard", methods=["POST"])
+async def set_clipboard_post(request):
+    try:
+        body = await request.json()
+        text = body.get("text", "")
+        input_controller.set_clipboard(text)
+        print(f"  [portal] Clipboard set: '{text[:50]}...'")
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, pin: str = None):
+    global connected_phone
     await websocket.accept()
     client_host = websocket.client.host if websocket.client else "unknown"
     
@@ -139,11 +251,13 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
         return
 
     print(f"  [+] Client authenticated and connected from {client_host}")
+    connected_phone = websocket
     try:
         await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x00)) # 0x00 = ok
         print(f"  [+] Sent connection ack to {client_host}")
     except Exception as e:
         print(f"  [!] Error sending ack: {e}")
+        connected_phone = None
         return
 
     msg_count = 0
@@ -340,6 +454,9 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
     except Exception as e:
         print(f"  [!] WebSocket error: {e}")
     finally:
+        global connected_phone
+        if connected_phone == websocket:
+            connected_phone = None
         if file_handle:
             file_handle.close()
 
