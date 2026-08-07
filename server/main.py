@@ -147,6 +147,13 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
         return
 
     msg_count = 0
+    # File transfer state
+    file_name = None
+    file_size = 0
+    file_received = 0
+    file_handle = None
+    file_save_dir = os.path.join(os.path.expanduser("~"), "Desktop", "SuperXontrol_Files")
+    
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -169,13 +176,12 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
                     print(f"  [click] button={button} action={action}")
                     input_controller.click_mouse(button, action)
                     try:
-                        await websocket.send_bytes(struct.pack('>BB', 0x06, 0))
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 0)) # tap haptic
                     except:
                         pass
             elif msg_type == 0x03: # Mouse Scroll
                 if len(data) >= 5:
                     dx, dy = struct.unpack('>hh', data[1:5])
-                    print(f"  [scroll] dx={dx} dy={dy}")
                     input_controller.scroll_mouse(dx, dy)
             elif msg_type == 0x04: # Key Press
                 if len(data) >= 3:
@@ -183,6 +189,10 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
                     modifiers = data[2]
                     print(f"  [key] type=0x{key_type:02x} modifiers=0x{modifiers:02x}")
                     input_controller.press_key(key_type, modifiers)
+                    try:
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 5)) # key haptic
+                    except:
+                        pass
             elif msg_type == 0x05: # Key Text
                 if len(data) > 1:
                     try:
@@ -213,9 +223,110 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
                     print(f"  [gesture] {GESTURE_NAMES.get(gesture_id, f'unknown 0x{gesture_id:02x}')}")
                     input_controller.gesture_shortcut(gesture_id)
                     try:
-                        await websocket.send_bytes(struct.pack('>BB', 0x06, 3))  # double haptic
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 4)) # gesture haptic
                     except:
                         pass
+            
+            # ── Drag & Drop ──
+            elif msg_type == 0x09: # Drag Start
+                print(f"  [drag] START")
+                input_controller.click_mouse(0, 1) # Left press (hold)
+                try:
+                    await websocket.send_bytes(struct.pack('>BB', 0x06, 2)) # drag start haptic
+                except:
+                    pass
+            elif msg_type == 0x0A: # Drag End
+                print(f"  [drag] END")
+                input_controller.click_mouse(0, 2) # Left release
+                try:
+                    await websocket.send_bytes(struct.pack('>BB', 0x06, 3)) # drag end haptic
+                except:
+                    pass
+            
+            # ── Clipboard Sync ──
+            elif msg_type == 0x0B: # Clipboard Push (phone → laptop)
+                if len(data) > 1:
+                    try:
+                        text = data[1:].decode('utf-8')
+                        print(f"  [clipboard] PUSH: '{text[:50]}...' ({len(text)} chars)")
+                        input_controller.set_clipboard(text)
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 7)) # clipboard haptic
+                    except Exception as e:
+                        print(f"  [!] Clipboard push error: {e}")
+            elif msg_type == 0x0D: # Clipboard Request (phone asks for laptop clipboard)
+                print(f"  [clipboard] PULL requested")
+                try:
+                    text = input_controller.get_clipboard()
+                    if text:
+                        encoded = text.encode('utf-8')
+                        response = bytes([0x0C]) + encoded
+                        await websocket.send_bytes(response)
+                        await websocket.send_bytes(struct.pack('>BB', 0x06, 7)) # clipboard haptic
+                        print(f"  [clipboard] Sent {len(text)} chars to phone")
+                    else:
+                        await websocket.send_bytes(bytes([0x0C]))
+                except Exception as e:
+                    print(f"  [!] Clipboard pull error: {e}")
+            
+            # ── File Transfer ──
+            elif msg_type == 0x10: # File Upload Start
+                try:
+                    name_len = struct.unpack('>H', data[1:3])[0]
+                    fname = data[3:3+name_len].decode('utf-8')
+                    fsize = struct.unpack('>I', data[3+name_len:7+name_len])[0]
+                    
+                    # Sanitize filename
+                    fname = os.path.basename(fname)
+                    os.makedirs(file_save_dir, exist_ok=True)
+                    fpath = os.path.join(file_save_dir, fname)
+                    
+                    # Handle duplicate names
+                    base, ext = os.path.splitext(fname)
+                    counter = 1
+                    while os.path.exists(fpath):
+                        fpath = os.path.join(file_save_dir, f"{base}_{counter}{ext}")
+                        counter += 1
+                    
+                    file_name = fpath
+                    file_size = fsize
+                    file_received = 0
+                    file_handle = open(fpath, 'wb')
+                    print(f"  [file] START: '{fname}' ({fsize} bytes) -> {fpath}")
+                except Exception as e:
+                    print(f"  [!] File header error: {e}")
+                    file_handle = None
+                    
+            elif msg_type == 0x11: # File Upload Chunk
+                if file_handle:
+                    try:
+                        chunk_idx = struct.unpack('>H', data[1:3])[0]
+                        chunk_data = data[3:]
+                        file_handle.write(chunk_data)
+                        file_received += len(chunk_data)
+                        
+                        if chunk_idx % 10 == 0:
+                            pct = int(file_received / file_size * 100) if file_size > 0 else 0
+                            print(f"  [file] chunk #{chunk_idx} ({pct}%)")
+                        
+                        # Check if complete
+                        if file_received >= file_size:
+                            file_handle.close()
+                            file_handle = None
+                            print(f"  [file] COMPLETE: {file_name}")
+                            try:
+                                await websocket.send_bytes(struct.pack('>BB', 0x12, 0x00)) # success ack
+                            except:
+                                pass
+                    except Exception as e:
+                        print(f"  [!] File chunk error: {e}")
+                        if file_handle:
+                            file_handle.close()
+                            file_handle = None
+                        try:
+                            await websocket.send_bytes(struct.pack('>BB', 0x12, 0x01)) # error ack
+                        except:
+                            pass
+            
             elif msg_type == 0xFF: # Ping/Pong
                 try:
                     await websocket.send_bytes(struct.pack('>B', 0xFF))
@@ -228,6 +339,9 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
         print(f"  [-] Client {client_host} disconnected (after {msg_count} messages)")
     except Exception as e:
         print(f"  [!] WebSocket error: {e}")
+    finally:
+        if file_handle:
+            file_handle.close()
 
 # Mount client directory if it exists
 client_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "client")

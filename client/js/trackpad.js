@@ -1,19 +1,18 @@
 import { GestureRecognizer } from './gestures.js';
 
-// Gesture shortcut IDs (must match server)
 const GESTURE = {
-  THREE_SWIPE_UP:    0x01,  // Task View (Win+Tab)
-  THREE_SWIPE_DOWN:  0x02,  // Show Desktop (Win+D)
-  THREE_SWIPE_LEFT:  0x03,  // Switch app left (Alt+Shift+Tab)
-  THREE_SWIPE_RIGHT: 0x04,  // Switch app right (Alt+Tab)
-  THREE_TAP:         0x05,  // Start Menu (Win key)
-  FOUR_SWIPE_UP:     0x06,  // Volume Up
-  FOUR_SWIPE_DOWN:   0x07,  // Volume Down
-  FOUR_SWIPE_LEFT:   0x08,  // Media Previous
-  FOUR_SWIPE_RIGHT:  0x09,  // Media Next
+  THREE_SWIPE_UP:    0x01,
+  THREE_SWIPE_DOWN:  0x02,
+  THREE_SWIPE_LEFT:  0x03,
+  THREE_SWIPE_RIGHT: 0x04,
+  THREE_TAP:         0x05,
+  FOUR_SWIPE_UP:     0x06,
+  FOUR_SWIPE_DOWN:   0x07,
+  FOUR_SWIPE_LEFT:   0x08,
+  FOUR_SWIPE_RIGHT:  0x09,
 };
 
-const SWIPE_THRESHOLD = 55;  // px of movement before swipe fires
+const SWIPE_THRESHOLD = 55;
 
 export class Trackpad {
   constructor(wsManager, containerId, sensitivity = 1.0, scrollSpeed = 1.0) {
@@ -24,20 +23,23 @@ export class Trackpad {
     this.sensitivity = sensitivity;
     this.scrollSpeed = scrollSpeed;
     
-    // 1-finger mouse move accumulator (60fps throttled)
+    // 1-finger mouse move accumulator
     this.pendingDx = 0;
     this.pendingDy = 0;
     this.rafId = null;
     
-    // 2-finger scroll accumulator (60fps throttled)
+    // 2-finger scroll accumulator
     this.scrollDx = 0;
     this.scrollDy = 0;
     this.scrollRafId = null;
     
     // Multi-finger swipe tracking
-    this.multiStartPositions = [];   // [{x, y}, ...] at touchstart
-    this.multiSwipeFired = false;    // Only fire swipe once per gesture
-    this.multiFingerCount = 0;       // How many fingers started
+    this.multiStartPositions = [];
+    this.multiSwipeFired = false;
+    this.multiFingerCount = 0;
+    
+    // ── Drag & Drop state ──
+    this.isDragging = false;
     
     this.gesture = new GestureRecognizer(this.container, {
       onTouchStart: this.onTouchStart.bind(this),
@@ -48,6 +50,20 @@ export class Trackpad {
     });
     
     this.lastTouches = new Map();
+    
+    // Listen for orientation changes to resize
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.resizeTrackpad(), 200);
+    });
+    window.addEventListener('resize', () => this.resizeTrackpad());
+  }
+  
+  resizeTrackpad() {
+    // Force recalculation of trackpad dimensions on orientation change
+    if (this.container) {
+      this.container.style.height = '';
+      void this.container.offsetHeight; // Trigger reflow
+    }
   }
   
   setSensitivity(val) { this.sensitivity = val; }
@@ -58,18 +74,22 @@ export class Trackpad {
       this.indicator.style.opacity = 1;
       this.indicator.style.left = e.touches[0].clientX + 'px';
       this.indicator.style.top = e.touches[0].clientY + 'px';
+      
+      // Show drag indicator if dragging
+      if (this.isDragging) {
+        this.indicator.classList.add('dragging');
+      }
+      
       this.createRipple(e.touches[0].clientX, e.touches[0].clientY);
     } else {
       this.indicator.style.opacity = 0;
     }
     
-    // Store per-finger last position for delta calculations
     for (let i = 0; i < e.touches.length; i++) {
       const t = e.touches[i];
       this.lastTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
     }
     
-    // Track multi-finger swipe start positions (3+ fingers)
     if (e.touches.length >= 3) {
       this.multiStartPositions = [];
       for (let i = 0; i < e.touches.length; i++) {
@@ -87,7 +107,6 @@ export class Trackpad {
     const fingerCount = e.touches.length;
     
     if (fingerCount === 1) {
-      // ── 1 Finger: Mouse Move ──
       const t = e.touches[0];
       const last = this.lastTouches.get(t.identifier);
       if (last) {
@@ -113,7 +132,6 @@ export class Trackpad {
       }
       
     } else if (fingerCount === 2) {
-      // ── 2 Fingers: Scroll ──
       let avgDx = 0, avgDy = 0;
       for (let i = 0; i < 2; i++) {
         const t = e.touches[i];
@@ -143,8 +161,6 @@ export class Trackpad {
       }
       
     } else if (fingerCount >= 3 && !this.multiSwipeFired && this.multiStartPositions.length > 0) {
-      // ── 3/4 Fingers: Swipe Detection ──
-      // Calculate average movement from start positions
       let totalDx = 0, totalDy = 0;
       const count = Math.min(fingerCount, this.multiStartPositions.length);
       
@@ -158,7 +174,6 @@ export class Trackpad {
       const distance = Math.sqrt(avgDx * avgDx + avgDy * avgDy);
       
       if (distance > SWIPE_THRESHOLD) {
-        // Determine swipe direction
         let direction;
         if (Math.abs(avgDx) > Math.abs(avgDy)) {
           direction = avgDx > 0 ? 'right' : 'left';
@@ -170,7 +185,6 @@ export class Trackpad {
         this.fireMultiSwipe(this.multiFingerCount, direction);
       }
       
-      // Update last positions for any continued tracking
       for (let i = 0; i < fingerCount; i++) {
         const t = e.touches[i];
         const last = this.lastTouches.get(t.identifier);
@@ -204,15 +218,12 @@ export class Trackpad {
     
     if (gestureId !== null) {
       this.ws.sendGestureShortcut(gestureId);
-      if (navigator.vibrate) navigator.vibrate([15, 30, 15]);
-      
-      // Show a brief toast indicator
+      if (navigator.vibrate) navigator.vibrate([10, 20, 10, 20, 10]); // gesture haptic
       this.showGestureToast(label);
     }
   }
   
   showGestureToast(label) {
-    // Create floating toast to show what gesture fired
     let toast = document.getElementById('gesture-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -242,7 +253,16 @@ export class Trackpad {
   onTouchEnd(e) {
     if (e.touches.length === 0) {
       this.indicator.style.opacity = 0;
-      // Reset multi-finger state when all fingers lifted
+      this.indicator.classList.remove('dragging');
+      
+      // If we were dragging and all fingers lifted, end the drag
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.ws.sendDragEnd();
+        if (navigator.vibrate) navigator.vibrate(30); // firm release
+        this.showGestureToast('Drop');
+      }
+      
       this.multiSwipeFired = false;
       this.multiStartPositions = [];
       this.multiFingerCount = 0;
@@ -255,19 +275,26 @@ export class Trackpad {
   onTap(fingers) {
     if (fingers === 1) {
       this.ws.sendMouseClick(0, 0);       // Left click
+      if (navigator.vibrate) navigator.vibrate(8); // tap haptic
     } else if (fingers === 2) {
       this.ws.sendMouseClick(1, 0);       // Right click
+      if (navigator.vibrate) navigator.vibrate(8);
     } else if (fingers === 3) {
-      // 3-finger tap = Windows Start Menu
       this.ws.sendGestureShortcut(GESTURE.THREE_TAP);
       this.showGestureToast('Start Menu');
-      if (navigator.vibrate) navigator.vibrate([15, 30, 15]);
+      if (navigator.vibrate) navigator.vibrate([10, 20, 10, 20, 10]);
     }
   }
   
   onLongPress() {
-    this.ws.sendMouseClick(1, 0); // Right click on long press
-    if (navigator.vibrate) navigator.vibrate(50);
+    if (!this.isDragging) {
+      // Start drag mode
+      this.isDragging = true;
+      this.ws.sendDragStart();
+      if (navigator.vibrate) navigator.vibrate([20, 40, 20]); // drag start haptic
+      this.indicator.classList.add('dragging');
+      this.showGestureToast('Drag');
+    }
   }
 
   createRipple(x, y) {

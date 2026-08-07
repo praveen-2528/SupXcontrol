@@ -122,6 +122,7 @@ class POINT(ctypes.Structure):
 
 # ─── Win32 API ───────────────────────────────────────────────────────────────
 user32 = ctypes.windll.user32
+kernel32 = ctypes.windll.kernel32
 SendInput = user32.SendInput
 SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
 SendInput.restype = ctypes.c_uint
@@ -408,3 +409,34 @@ class InputController:
                 self.media_control(0x34)
         except Exception as e:
             print(f"  [!] Error executing gesture: {e}")
+
+    def get_clipboard(self):
+        try:
+            if user32.OpenClipboard(0):
+                try:
+                    handle = user32.GetClipboardData(13)  # CF_UNICODETEXT
+                    if handle:
+                        return ctypes.wstring_at(handle)
+                finally:
+                    user32.CloseClipboard()
+        except Exception as e:
+            print(f"  [!] Error getting clipboard: {e}")
+        return ""
+
+    def set_clipboard(self, text):
+        try:
+            if user32.OpenClipboard(0):
+                try:
+                    user32.EmptyClipboard()
+                    buf = ctypes.create_unicode_buffer(text)
+                    size = ctypes.sizeof(buf)
+                    handle = kernel32.GlobalAlloc(0x0002, size)  # GMEM_MOVEABLE
+                    if handle:
+                        locked = kernel32.GlobalLock(handle)
+                        ctypes.memmove(locked, buf, size)
+                        kernel32.GlobalUnlock(handle)
+                        user32.SetClipboardData(13, handle)  # CF_UNICODETEXT
+                finally:
+                    user32.CloseClipboard()
+        except Exception as e:
+            print(f"  [!] Error setting clipboard: {e}")
