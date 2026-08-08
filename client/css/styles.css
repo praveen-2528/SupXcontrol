@@ -611,7 +611,7 @@ h1, h2, h3, .logo {
   align-items: center;
   gap: 4px;
   font-size: 0.75rem;
-  width: 33%;
+  width: 25%;
   transition: color var(--transition-fast);
 }
 
@@ -632,7 +632,7 @@ h1, h2, h3, .logo {
 .tab-active-indicator {
   position: absolute;
   top: 0;
-  width: 33.33%;
+  width: 25%;
   height: 2px;
   background: var(--gradient-accent);
   box-shadow: var(--shadow-glow-blue);
@@ -969,4 +969,123 @@ input[type=range]::-webkit-slider-runnable-track {
   .kb-key { min-height: 30px; font-size: 0.75rem; }
   .kb-row { gap: 2px; }
 }
+
+/* ─── Files View (Phone) ─── */
+.files-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  gap: 12px;
+}
+
+.files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.files-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.phone-file-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+.phone-file-list::-webkit-scrollbar { width: 4px; }
+.phone-file-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
+
+.phone-file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  transition: all 0.2s;
+}
+
+.phone-file-item:active {
+  transform: scale(0.98);
+  background: var(--bg-glass-hover);
+}
+
+.phone-file-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.phone-file-icon.img { background: rgba(139, 92, 246, 0.15); }
+.phone-file-icon.doc { background: rgba(0, 212, 255, 0.15); }
+.phone-file-icon.vid { background: rgba(245, 158, 11, 0.15); }
+.phone-file-icon.aud { background: rgba(16, 185, 129, 0.15); }
+.phone-file-icon.other { background: rgba(255, 255, 255, 0.06); }
+
+.phone-file-details {
+  flex: 1;
+  overflow: hidden;
+}
+
+.phone-file-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-file-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.phone-file-dl {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  color: var(--accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.phone-file-dl:active {
+  background: rgba(0, 212, 255, 0.2);
+  transform: scale(0.9);
+}
+
+.phone-file-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 

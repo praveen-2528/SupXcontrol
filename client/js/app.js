@@ -232,6 +232,7 @@ class App {
     this.setupMediaControls();
     this.setupClipboard();
     this.setupFileTransfer();
+    this.setupFileBrowser();
     
     // Auto-fill IP if possible
     if (window.location.protocol.startsWith('http')) {
@@ -429,6 +430,7 @@ class App {
       }
       if (status === 0) {
         this.showToast('File sent successfully!');
+        this.fetchSharedFiles();
       } else {
         this.showToast('File transfer failed.');
       }
@@ -438,7 +440,77 @@ class App {
     this.ws.on('onFileNotification', (filename) => {
       this.showToast('File received: ' + filename);
       if (navigator.vibrate) navigator.vibrate([10, 30, 10, 30]);
+      this.fetchSharedFiles();
     });
+  }
+  
+  // ── File Browser ──
+  setupFileBrowser() {
+    const refreshBtn = document.getElementById('files-refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.fetchSharedFiles());
+    }
+    // Initial load once connected
+    this.ws.on('onConnect', () => {
+      setTimeout(() => this.fetchSharedFiles(), 500);
+    });
+  }
+  
+  async fetchSharedFiles() {
+    const list = document.getElementById('phone-file-list');
+    if (!list) return;
+    
+    try {
+      const origin = window.location.origin;
+      const res = await fetch(origin + '/api/files');
+      if (!res.ok) throw new Error('Failed');
+      const files = await res.json();
+      
+      if (files.length === 0) {
+        list.innerHTML = '<div class="phone-file-empty">No files shared yet.<br>Upload from the header icon or laptop portal.</div>';
+        return;
+      }
+      
+      list.innerHTML = files.map(f => {
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        let iconClass = 'other', emoji = '\ud83d\udcc4';
+        if (['jpg','jpeg','png','gif','webp','svg','bmp','ico'].includes(ext)) { iconClass = 'img'; emoji = '\ud83d\uddbc\ufe0f'; }
+        else if (['mp4','mkv','avi','mov','webm'].includes(ext)) { iconClass = 'vid'; emoji = '\ud83c\udfac'; }
+        else if (['mp3','wav','ogg','flac','aac','m4a'].includes(ext)) { iconClass = 'aud'; emoji = '\ud83c\udfb5'; }
+        else if (['pdf','doc','docx','txt','xls','xlsx','ppt','pptx','csv'].includes(ext)) { iconClass = 'doc'; emoji = '\ud83d\udcc3'; }
+        else if (['zip','rar','7z','tar','gz'].includes(ext)) { emoji = '\ud83d\udce6'; }
+        
+        const sizeStr = this._formatBytes(f.size);
+        const timeStr = this._relTime(f.modified);
+        
+        return `<div class="phone-file-item">
+          <div class="phone-file-icon ${iconClass}">${emoji}</div>
+          <div class="phone-file-details">
+            <div class="phone-file-name" title="${f.name}">${f.name}</div>
+            <div class="phone-file-meta">${sizeStr} \u2022 ${timeStr}</div>
+          </div>
+          <a href="${origin}/api/download/${encodeURIComponent(f.name)}" class="phone-file-dl" download="${f.name}">\u2193</a>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="phone-file-empty">Could not load files</div>';
+    }
+  }
+  
+  _formatBytes(b, d = 1) {
+    if (b === 0) return '0 B';
+    const k = 1024, s = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(b) / Math.log(k));
+    return parseFloat((b / Math.pow(k, i)).toFixed(d)) + ' ' + s[i];
+  }
+  
+  _relTime(dateStr) {
+    if (!dateStr) return '';
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
   }
   
   async sendFile(file) {
