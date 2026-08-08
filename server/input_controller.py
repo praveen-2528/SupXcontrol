@@ -411,17 +411,36 @@ class InputController:
             print(f"  [!] Error executing gesture: {e}")
 
     def get_clipboard(self):
+        """Read CF_UNICODETEXT from the Windows clipboard.
+        
+        Returns the text string, or empty string if clipboard is empty,
+        contains non-text data, or an error occurs.
+        """
+        CF_UNICODETEXT = 13
         try:
-            if user32.OpenClipboard(0):
+            # Check if text format is actually available before opening
+            if not user32.IsClipboardFormatAvailable(CF_UNICODETEXT):
+                return ""
+            if not user32.OpenClipboard(0):
+                return ""
+            try:
+                handle = user32.GetClipboardData(CF_UNICODETEXT)
+                if not handle:
+                    return ""
+                # Must lock the global memory handle to get a valid pointer
+                kernel32.GlobalLock.restype = ctypes.c_void_p
+                ptr = kernel32.GlobalLock(handle)
+                if not ptr:
+                    return ""
                 try:
-                    handle = user32.GetClipboardData(13)  # CF_UNICODETEXT
-                    if handle:
-                        return ctypes.wstring_at(handle)
+                    return ctypes.wstring_at(ptr)
                 finally:
-                    user32.CloseClipboard()
-        except Exception as e:
-            print(f"  [!] Error getting clipboard: {e}")
-        return ""
+                    kernel32.GlobalUnlock(handle)
+            finally:
+                user32.CloseClipboard()
+        except Exception:
+            # Silently fail — the background watcher calls this often
+            return ""
 
     def set_clipboard(self, text):
         try:
