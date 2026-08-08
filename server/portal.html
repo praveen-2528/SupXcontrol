@@ -3,648 +3,604 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SuperXontrol</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <title>SuperXontrol Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #0a0a0f;
-            --card-bg: #12121a;
+            --bg: #06060b;
+            --bg-secondary: #0d0d14;
+            --card-bg: rgba(14, 14, 22, 0.7);
             --accent: #00d4ff;
             --violet: #8b5cf6;
-            --text-main: #f8f8f2;
-            --text-muted: #a1a1aa;
-            --border: rgba(255, 255, 255, 0.08);
-            --glass: rgba(18, 18, 26, 0.6);
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --text-main: #f0f0f5;
+            --text-muted: #6b6b80;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --glass: rgba(255, 255, 255, 0.02);
+            --glass-hover: rgba(255, 255, 255, 0.05);
+            --radius: 16px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
+            background: var(--bg);
             color: var(--text-main);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.1), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(0, 212, 255, 0.1), transparent 25%);
+            overflow-x: hidden;
         }
 
-        /* Top Bar */
+        /* Animated background orbs */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            z-index: 0;
+            animation: float 20s ease-in-out infinite;
+        }
+        body::before {
+            width: 600px; height: 600px;
+            background: var(--violet);
+            top: -200px; left: -100px;
+        }
+        body::after {
+            width: 500px; height: 500px;
+            background: var(--accent);
+            bottom: -150px; right: -100px;
+            animation-delay: -10s;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -20px) scale(1.05); }
+            66% { transform: translate(-20px, 15px) scale(0.95); }
+        }
+
+        /* Grain overlay */
+        .grain {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 0;
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ─── Top Bar ─── */
         .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 2rem;
             border-bottom: 1px solid var(--border);
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(6, 6, 11, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: sticky; top: 0; z-index: 100;
         }
-
         .logo {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 1.4rem; font-weight: 700;
             letter-spacing: -0.5px;
         }
-
         .logo span {
             background: linear-gradient(135deg, var(--accent), var(--violet));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-
-        .connection-info {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
+        .topbar-right {
+            display: flex; align-items: center; gap: 1rem;
         }
-
-        .info-pill {
-            background: rgba(255, 255, 255, 0.03);
+        .pill {
+            background: var(--glass);
             border: 1px solid var(--border);
-            padding: 0.5rem 1rem;
+            padding: 0.45rem 1rem;
             border-radius: 100px;
-            font-size: 0.875rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex; align-items: center; gap: 0.5rem;
+            transition: all 0.2s;
         }
-
-        .qr-code {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        .pill:hover { border-color: var(--border-hover); }
+        .pill strong { color: var(--text-main); }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+        .qr-thumb {
+            width: 36px; height: 36px; border-radius: 8px;
             border: 1px solid var(--border);
-            object-fit: cover;
-            cursor: pointer;
-            transition: transform 0.2s ease;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .qr-thumb:hover { transform: scale(1.15); }
+
+        /* ─── Layout ─── */
+        .dashboard {
+            flex: 1; padding: 1.5rem 2rem 2rem;
+            max-width: 1440px; margin: 0 auto; width: 100%;
+            display: flex; flex-direction: column; gap: 1.5rem;
         }
 
-        .qr-code:hover {
-            transform: scale(1.1);
-        }
-
-        /* Main Grid */
-        .container {
-            flex: 1;
-            padding: 2rem;
-            max-width: 1440px;
-            margin: 0 auto;
-            width: 100%;
+        /* ─── Stats Row ─── */
+        .stats-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+        .stat-card .stat-label {
+            font-size: 0.75rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .stat-value {
+            font-size: 1.75rem; font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-card .stat-bar {
+            position: absolute; bottom: 0; left: 0;
+            height: 3px; transition: width 0.5s ease;
+        }
+        .stat-cpu .stat-value { color: var(--accent); }
+        .stat-cpu .stat-bar { background: var(--accent); }
+        .stat-ram .stat-value { color: var(--violet); }
+        .stat-ram .stat-bar { background: var(--violet); }
+        .stat-files .stat-value { color: var(--amber); }
+        .stat-uptime .stat-value { color: var(--green); }
+
+        /* ─── Charts Row ─── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
-            align-items: start;
         }
 
-        @media (max-width: 1024px) {
-            .container {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-            .topbar {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-        }
-
+        /* ─── Card ─── */
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
-            overflow: hidden;
-            height: 100%;
+            backdrop-filter: blur(12px);
+            display: flex; flex-direction: column; gap: 1rem;
+            transition: border-color 0.3s;
+            position: relative; overflow: hidden;
         }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transform: translateX(-100%);
-            transition: transform 0.5s ease;
-        }
-
-        .card:hover::before {
-            transform: translateX(100%);
-        }
-
+        .card:hover { border-color: var(--border-hover); }
         .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1rem;
-            margin-bottom: 0.5rem;
+            display: flex; justify-content: space-between; align-items: center;
         }
-
         .card-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 0.95rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .card-title .icon {
+            width: 28px; height: 28px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem;
+        }
+        .card-title .icon.blue { background: rgba(0, 212, 255, 0.1); }
+        .card-title .icon.violet { background: rgba(139, 92, 246, 0.1); }
+        .card-title .icon.amber { background: rgba(245, 158, 11, 0.1); }
+        .card-title .icon.green { background: rgba(16, 185, 129, 0.1); }
+
+        .chart-wrap { position: relative; height: 220px; }
+
+        /* ─── Main Grid ─── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
         }
 
-        /* Shared Files */
+        /* ─── File List ─── */
         .file-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            max-height: 400px;
-            overflow-y: auto;
+            display: flex; flex-direction: column; gap: 0.4rem;
+            max-height: 320px; overflow-y: auto;
         }
-
-        .file-list::-webkit-scrollbar {
-            width: 6px;
-        }
-        .file-list::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 10px;
-        }
-
+        .file-list::-webkit-scrollbar { width: 4px; }
+        .file-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
         .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background: rgba(255,255,255,0.02);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.65rem 0.85rem;
+            background: var(--glass);
             border: 1px solid transparent;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-
-        .file-item:hover {
-            background: rgba(255,255,255,0.05);
-            border-color: var(--border);
-        }
-
-        .file-info {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .file-name {
-            font-weight: 500;
-            font-size: 0.9rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .file-meta {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 0.25rem;
-        }
-
-        .btn-download {
-            background: rgba(0, 212, 255, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            text-decoration: none;
+            border-radius: 10px;
             transition: all 0.2s;
         }
-
-        .btn-download:hover {
-            background: rgba(0, 212, 255, 0.2);
+        .file-item:hover { background: var(--glass-hover); border-color: var(--border); }
+        .file-info { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
+        .file-name {
+            font-weight: 500; font-size: 0.85rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-
+        .file-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+        .btn-dl {
+            background: rgba(0, 212, 255, 0.08); color: var(--accent);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            padding: 0.35rem 0.7rem; border-radius: 6px;
+            font-size: 0.75rem; cursor: pointer; text-decoration: none;
+            transition: all 0.2s; flex-shrink: 0; margin-left: 0.5rem;
+        }
+        .btn-dl:hover { background: rgba(0, 212, 255, 0.15); }
         .empty-state {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-muted);
-            font-size: 0.9rem;
+            text-align: center; padding: 2rem; color: var(--text-muted);
+            font-size: 0.85rem;
         }
 
-        /* Upload Area */
+        /* ─── Upload ─── */
         .upload-zone {
             border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 3rem 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: rgba(255,255,255,0.01);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            flex: 1;
+            border-radius: 12px; padding: 2.5rem 1.5rem;
+            text-align: center; cursor: pointer;
+            transition: all 0.25s; background: var(--glass);
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 0.75rem; flex: 1;
         }
-
-        .upload-zone.dragover {
-            border-color: var(--violet);
-            background: rgba(139, 92, 246, 0.05);
+        .upload-zone.dragover { border-color: var(--violet); background: rgba(139, 92, 246, 0.05); }
+        .upload-zone:hover { border-color: rgba(255,255,255,0.15); }
+        .upload-icon { font-size: 2rem; opacity: 0.5; }
+        .upload-text { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }
+        .upload-text em { color: var(--accent); font-style: normal; }
+        .progress-wrap {
+            width: 100%; height: 4px;
+            background: rgba(255,255,255,0.06); border-radius: 2px;
+            overflow: hidden; margin-top: 0.75rem; display: none;
         }
-
-        .upload-zone:hover {
-            border-color: rgba(255,255,255,0.2);
-        }
-
-        .upload-icon {
-            font-size: 2.5rem;
-            color: var(--text-muted);
-        }
-
-        .upload-text {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .upload-text span {
-            color: var(--accent);
-            text-decoration: underline;
-        }
-
-        .progress-bar-container {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 1rem;
-            display: none;
-        }
-
-        .progress-bar {
-            height: 100%;
-            width: 0%;
+        .progress-fill {
+            height: 100%; width: 0%;
             background: linear-gradient(90deg, var(--accent), var(--violet));
-            transition: width 0.2s ease;
+            transition: width 0.15s ease;
         }
 
-        /* Clipboard */
-        .clipboard-area {
-            width: 100%;
-            height: 150px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            resize: none;
-            outline: none;
+        /* ─── Clipboard ─── */
+        .clip-area {
+            width: 100%; height: 120px;
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 10px; padding: 0.85rem;
+            color: var(--text-main); font-family: 'Inter', sans-serif;
+            font-size: 0.85rem; resize: none; outline: none;
             transition: border-color 0.2s;
-            margin-bottom: 1rem;
         }
-
-        .clipboard-area:focus {
-            border-color: var(--violet);
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-
+        .clip-area:focus { border-color: var(--violet); }
+        .clip-area::placeholder { color: var(--text-muted); }
+        .btn-row { display: flex; gap: 0.5rem; }
         .btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 0.6rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.875rem;
+            background: var(--glass); border: 1px solid var(--border);
+            color: var(--text-main); padding: 0.55rem 1rem;
+            border-radius: 8px; cursor: pointer;
+            font-size: 0.8rem; transition: all 0.2s;
+            flex: 1; text-align: center;
+        }
+        .btn:hover { background: var(--glass-hover); border-color: var(--border-hover); }
+        .btn-accent {
+            background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(139,92,246,0.15));
+            border-color: rgba(0,212,255,0.25);
+        }
+        .btn-accent:hover { border-color: rgba(0,212,255,0.4); }
+        .btn-icon {
+            background: var(--glass); border: 1px solid var(--border);
+            color: var(--text-muted); width: 32px; height: 32px;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
         }
+        .btn-icon:hover { color: var(--text-main); border-color: var(--border-hover); }
 
-        .btn:hover {
-            background: rgba(255,255,255,0.1);
+        /* ─── Event Log ─── */
+        .event-log {
+            display: flex; flex-direction: column; gap: 0.35rem;
+            max-height: 200px; overflow-y: auto; font-size: 0.78rem;
         }
-
-        .btn-primary {
-            background: var(--violet);
-            border-color: var(--violet);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #7c3aed;
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            padding: 1.5rem;
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            border-top: 1px solid var(--border);
+        .event-log::-webkit-scrollbar { width: 4px; }
+        .event-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+        .log-entry {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.4rem 0.65rem; border-radius: 6px;
             background: var(--glass);
         }
+        .log-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .log-dot.blue { background: var(--accent); }
+        .log-dot.green { background: var(--green); }
+        .log-dot.violet { background: var(--violet); }
+        .log-time { color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .log-msg { color: var(--text-main); }
 
-        /* Toast */
+        /* ─── Footer ─── */
+        .footer {
+            text-align: center; padding: 1.25rem;
+            color: var(--text-muted); font-size: 0.7rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ─── Toast ─── */
         #toast-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            z-index: 9999;
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999;
         }
-
         .toast {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-left: 4px solid var(--accent);
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            animation: slideIn 0.3s ease forwards;
-            opacity: 0;
-            transform: translateX(100%);
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            padding: 0.85rem 1.25rem; border-radius: 10px;
+            box-shadow: var(--shadow);
+            display: flex; align-items: center; gap: 0.75rem;
+            font-size: 0.85rem;
+            animation: toastIn 0.3s ease forwards;
+            opacity: 0; transform: translateX(40px);
         }
+        .toast.success { border-left-color: var(--green); }
+        .toast.error { border-left-color: var(--red); }
+        @keyframes toastIn { to { opacity: 1; transform: translateX(0); } }
+        .toast.fade-out { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastOut { to { opacity: 0; transform: translateX(40px); } }
 
-        .toast.error {
-            border-left-color: #ef4444;
+        /* ─── Skeleton ─── */
+        .skel {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px;
         }
-        
-        .toast.success {
-            border-left-color: #10b981;
-        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        @keyframes slideIn {
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        /* ─── Responsive ─── */
+        @media (max-width: 1100px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .main-grid { grid-template-columns: 1fr 1fr; }
         }
-
-        @keyframes slideOut {
-            to {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-        }
-        
-        .fade-out {
-            animation: slideOut 0.3s ease forwards;
-        }
-        
-        /* Skeleton loading */
-        .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-        }
-        
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .charts-row { grid-template-columns: 1fr; }
+            .main-grid { grid-template-columns: 1fr; }
+            .topbar { flex-direction: column; gap: 0.75rem; text-align: center; }
+            .dashboard { padding: 1rem; }
         }
     </style>
 </head>
 <body>
+    <div class="grain"></div>
+    <div class="page-wrapper">
 
-    <header class="topbar">
-        <div class="logo">Super<span>X</span>ontrol</div>
-        <div class="connection-info">
-            <div class="info-pill" id="ip-info">
-                <span class="skeleton" style="width: 100px; height: 16px;"></span>
+        <header class="topbar">
+            <div class="logo">Super<span>X</span>ontrol</div>
+            <div class="topbar-right">
+                <div class="pill"><div class="status-dot"></div> <span>Server Running</span></div>
+                <div class="pill" id="ip-pill"><span class="skel" style="width:90px;height:14px;"></span></div>
+                <div class="pill" id="pin-pill"><span class="skel" style="width:70px;height:14px;"></span></div>
+                <img src="/qr" alt="QR" class="qr-thumb" onerror="this.style.display='none'">
             </div>
-            <div class="info-pill" id="pin-info">
-                <span class="skeleton" style="width: 80px; height: 16px;"></span>
-            </div>
-            <img src="/qr" alt="QR Code" class="qr-code" id="qr-code" onerror="this.style.display='none'">
-        </div>
-    </header>
+        </header>
 
-    <!-- Performance Graphs -->
-    <section class="container" style="padding-bottom: 0;">
-        <div class="card" style="grid-column: 1 / -1;">
-            <div class="card-header">
-                <h2 class="card-title">📈 System Performance</h2>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                <div style="position: relative; height: 200px;">
-                    <canvas id="cpuChart"></canvas>
+        <main class="dashboard">
+            <!-- Stats Row -->
+            <div class="stats-row">
+                <div class="stat-card stat-cpu">
+                    <div class="stat-label">CPU Usage</div>
+                    <div class="stat-value" id="cpu-val">0%</div>
+                    <div class="stat-bar" id="cpu-bar" style="width:0%"></div>
                 </div>
-                <div style="position: relative; height: 200px;">
-                    <canvas id="ramChart"></canvas>
+                <div class="stat-card stat-ram">
+                    <div class="stat-label">Memory Usage</div>
+                    <div class="stat-value" id="ram-val">0%</div>
+                    <div class="stat-bar" id="ram-bar" style="width:0%"></div>
+                </div>
+                <div class="stat-card stat-files">
+                    <div class="stat-label">Shared Files</div>
+                    <div class="stat-value" id="file-count">0</div>
+                </div>
+                <div class="stat-card stat-uptime">
+                    <div class="stat-label">Uptime</div>
+                    <div class="stat-value" id="uptime-val">0m</div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <main class="container">
-        <!-- Shared Files Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">📁 Shared Files</h2>
-                <button class="btn" style="padding: 0.25rem 0.5rem; flex: 0;" onclick="fetchFiles()" title="Refresh">
-                    ↻
-                </button>
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><div class="icon blue">C</div> CPU History</div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><div class="icon violet">M</div> Memory History</div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="ramChart"></canvas></div>
+                </div>
             </div>
-            <div class="file-list" id="file-list">
-                <!-- Populated by JS -->
-                <div class="empty-state skeleton" style="height: 100px; border-radius: 8px;"></div>
-                <div class="empty-state skeleton" style="height: 100px; border-radius: 8px;"></div>
-            </div>
-        </div>
 
-        <!-- Upload Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">📤 Send to Phone</h2>
-            </div>
-            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-                <div class="upload-icon">☁️</div>
-                <div class="upload-text">Drag & drop files here<br>or <span>click to browse</span></div>
-                <input type="file" id="file-input" hidden multiple>
-            </div>
-            <div class="progress-bar-container" id="progress-container">
-                <div class="progress-bar" id="progress-bar"></div>
-            </div>
-        </div>
+            <!-- Main Grid -->
+            <div class="main-grid">
+                <!-- Shared Files -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><div class="icon amber">F</div> Shared Files</div>
+                        <button class="btn-icon" onclick="fetchFiles()" title="Refresh">&#8635;</button>
+                    </div>
+                    <div class="file-list" id="file-list">
+                        <div class="skel" style="height:50px;border-radius:8px;"></div>
+                        <div class="skel" style="height:50px;border-radius:8px;"></div>
+                    </div>
+                </div>
 
-        <!-- Clipboard Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">📋 Clipboard Sync</h2>
-                <button class="btn" style="padding: 0.25rem 0.5rem; flex: 0;" onclick="fetchClipboard()" title="Refresh">
-                    ↻
-                </button>
-            </div>
-            <textarea class="clipboard-area" id="clipboard-text" placeholder="Loading clipboard..."></textarea>
-            <div class="btn-group">
-                <button class="btn" onclick="document.getElementById('clipboard-text').value = ''">Clear</button>
-                <button class="btn btn-primary" onclick="setClipboard()">Sync to Laptop</button>
-            </div>
-        </div>
-    </main>
+                <!-- Upload -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><div class="icon blue">U</div> Send to Phone</div>
+                    </div>
+                    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                        <div class="upload-icon">&#9729;</div>
+                        <div class="upload-text">Drop files here or <em>browse</em></div>
+                        <input type="file" id="file-input" hidden multiple>
+                    </div>
+                    <div class="progress-wrap" id="progress-wrap">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
 
-    <footer class="footer" id="footer-text">
-        SuperXontrol v2.0 — Running on <span class="skeleton" style="width: 80px; height: 12px; display: inline-block;"></span>
-    </footer>
+                <!-- Clipboard -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><div class="icon green">C</div> Clipboard Sync</div>
+                        <button class="btn-icon" onclick="fetchClipboard()" title="Refresh">&#8635;</button>
+                    </div>
+                    <textarea class="clip-area" id="clipboard-text" placeholder="Clipboard contents appear here..."></textarea>
+                    <div class="btn-row">
+                        <button class="btn" onclick="document.getElementById('clipboard-text').value=''">Clear</button>
+                        <button class="btn btn-accent" onclick="setClipboard()">Sync to Laptop</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Log -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><div class="icon green">L</div> Live Activity</div>
+                </div>
+                <div class="event-log" id="event-log">
+                    <div class="log-entry"><div class="log-dot blue"></div><span class="log-time">--:--</span><span class="log-msg">Waiting for events...</span></div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer" id="footer-text">SuperXontrol v2.0</footer>
+    </div>
 
     <div id="toast-container"></div>
 
     <script>
-        // Utilities
-        function formatBytes(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        // ─── Utilities ───
+        const startTime = Date.now();
+
+        function formatBytes(b, d = 1) {
+            if (b === 0) return '0 B';
+            const k = 1024, s = ['B','KB','MB','GB','TB'];
+            const i = Math.floor(Math.log(b) / Math.log(k));
+            return parseFloat((b / Math.pow(k, i)).toFixed(d)) + ' ' + s[i];
         }
 
-        function formatRelativeTime(dateStr) {
+        function relTime(dateStr) {
             if (!dateStr) return '';
-            const date = new Date(dateStr);
+            const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+
+        function fmtUptime() {
+            const s = Math.floor((Date.now() - startTime) / 1000);
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+            if (h > 0) return h + 'h ' + m + 'm';
+            return m + 'm';
+        }
+        setInterval(() => { document.getElementById('uptime-val').textContent = fmtUptime(); }, 10000);
+
+        function showToast(msg, type = 'info') {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            const icon = type === 'success' ? '\u2713' : type === 'error' ? '\u2717' : 'i';
+            t.innerHTML = '<span>' + icon + '</span> <span>' + msg + '</span>';
+            c.appendChild(t);
+            setTimeout(() => { t.classList.add('fade-out'); setTimeout(() => t.remove(), 300); }, 3500);
+        }
+
+        function addLog(msg, color = 'blue') {
+            const log = document.getElementById('event-log');
             const now = new Date();
-            const diffInSeconds = Math.floor((now - date) / 1000);
-            
-            if (diffInSeconds < 60) return 'Just now';
-            
-            const diffInMinutes = Math.floor(diffInSeconds / 60);
-            if (diffInMinutes < 60) return \`\${diffInMinutes} minute\${diffInMinutes > 1 ? 's' : ''} ago\`;
-            
-            const diffInHours = Math.floor(diffInMinutes / 60);
-            if (diffInHours < 24) return \`\${diffInHours} hour\${diffInHours > 1 ? 's' : ''} ago\`;
-            
-            const diffInDays = Math.floor(diffInHours / 24);
-            if (diffInDays < 30) return \`\${diffInDays} day\${diffInDays > 1 ? 's' : ''} ago\`;
-            
-            return date.toLocaleDateString();
+            const ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = '<div class="log-dot ' + color + '"></div><span class="log-time">' + ts + '</span><span class="log-msg">' + msg + '</span>';
+            log.prepend(entry);
+            // Keep max 50 entries
+            while (log.children.length > 50) log.removeChild(log.lastChild);
         }
 
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = \`toast \${type}\`;
-            
-            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-            toast.innerHTML = \`<span>\${icon}</span> <span>\${message}</span>\`;
-            
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.classList.add('fade-out');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        // API Calls
+        // ─── Server Info ───
         async function fetchInfo() {
             try {
                 const [infoRes, portalRes] = await Promise.all([
                     fetch('/api/info').catch(() => null),
                     fetch('/api/portal-info').catch(() => null)
                 ]);
-                
-                let ip = 'Unknown IP';
-                let port = '';
-                let hostname = 'Unknown Host';
-                let pin = '----';
-
+                let ip = '?', port = '', hostname = '?', pin = '----';
                 if (infoRes && infoRes.ok) {
-                    const info = await infoRes.json();
-                    ip = info.ip || ip;
-                    port = info.port ? \`:\${info.port}\` : '';
-                    hostname = info.hostname || hostname;
+                    const d = await infoRes.json();
+                    ip = d.ip || ip; port = d.port ? ':' + d.port : ''; hostname = d.hostname || hostname;
                 }
-                
                 if (portalRes && portalRes.ok) {
-                    const portal = await portalRes.json();
-                    pin = portal.pin || pin;
+                    const d = await portalRes.json();
+                    pin = d.pin || pin;
                 }
-
-                document.getElementById('ip-info').innerHTML = \`🌐 \${ip}\${port}\`;
-                document.getElementById('pin-info').innerHTML = \`🔑 PIN: <strong>\${pin}</strong>\`;
-                document.getElementById('footer-text').innerHTML = \`SuperXontrol v2.0 — Running on \${hostname}\`;
-                
-                // Set QR code src relative to current origin to avoid caching issues if needed
-                document.getElementById('qr-code').src = \`/qr?t=\${new Date().getTime()}\`;
-                
-            } catch (err) {
-                console.error("Failed to fetch info", err);
-            }
+                document.getElementById('ip-pill').innerHTML = '\ud83c\udf10 ' + ip + port;
+                document.getElementById('pin-pill').innerHTML = '\ud83d\udd11 PIN: <strong>' + pin + '</strong>';
+                document.getElementById('footer-text').textContent = 'SuperXontrol v2.0 \u2014 ' + hostname;
+            } catch (e) { console.error(e); }
         }
 
+        // ─── Files ───
         async function fetchFiles() {
             try {
                 const res = await fetch('/api/files');
-                if (!res.ok) throw new Error('Failed to fetch files');
+                if (!res.ok) throw new Error();
                 const files = await res.json();
-                
+                document.getElementById('file-count').textContent = files.length;
                 const list = document.getElementById('file-list');
-                
                 if (files.length === 0) {
-                    list.innerHTML = \`<div class="empty-state">No files shared yet</div>\`;
+                    list.innerHTML = '<div class="empty-state">No files shared yet</div>';
                     return;
                 }
-                
-                list.innerHTML = files.map(file => \`
-                    <div class="file-item">
-                        <div class="file-info">
-                            <span class="file-name" title="\${file.name}">\${file.name}</span>
-                            <span class="file-meta">\${formatBytes(file.size)} • \${formatRelativeTime(file.modified)}</span>
-                        </div>
-                        <a href="/api/download/\${encodeURIComponent(file.name)}" class="btn-download" download="\${file.name}">↓</a>
-                    </div>
-                \`).join('');
-            } catch (err) {
-                console.error(err);
-                document.getElementById('file-list').innerHTML = \`<div class="empty-state">Failed to load files</div>\`;
+                list.innerHTML = files.map(f =>
+                    '<div class="file-item">' +
+                        '<div class="file-info">' +
+                            '<span class="file-name" title="' + f.name + '">' + f.name + '</span>' +
+                            '<span class="file-meta">' + formatBytes(f.size) + ' \u2022 ' + relTime(f.modified) + '</span>' +
+                        '</div>' +
+                        '<a href="/api/download/' + encodeURIComponent(f.name) + '" class="btn-dl" download="' + f.name + '">\u2193</a>' +
+                    '</div>'
+                ).join('');
+            } catch (e) {
+                document.getElementById('file-list').innerHTML = '<div class="empty-state">Failed to load files</div>';
             }
         }
 
+        // ─── Clipboard ───
         async function fetchClipboard() {
             try {
                 const res = await fetch('/api/clipboard');
-                if (!res.ok) throw new Error('Failed to fetch clipboard');
+                if (!res.ok) throw new Error();
                 const data = await res.json();
-                const textarea = document.getElementById('clipboard-text');
-                
-                // Only update if not currently focused by user
-                if (document.activeElement !== textarea) {
-                    textarea.value = data.text || '';
-                }
-            } catch (err) {
-                console.error(err);
-            }
+                const ta = document.getElementById('clipboard-text');
+                if (document.activeElement !== ta) ta.value = data.text || '';
+            } catch (e) { console.error(e); }
         }
 
         async function setClipboard() {
@@ -655,143 +611,113 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
                 });
-                
-                if (!res.ok) throw new Error('Failed to sync clipboard');
-                showToast('Clipboard synced successfully', 'success');
-            } catch (err) {
-                console.error(err);
-                showToast('Failed to sync clipboard', 'error');
+                if (!res.ok) throw new Error();
+                showToast('Clipboard synced', 'success');
+                addLog('Clipboard synced to laptop', 'green');
+            } catch (e) {
+                showToast('Clipboard sync failed', 'error');
             }
         }
 
-        // Upload functionality
+        // ─── Upload ───
         function handleFiles(files) {
             if (files.length === 0) return;
-            
-            const formData = new FormData();
-            for (let i = 0; i < files.length; i++) {
-                formData.append('file', files[i]);
-            }
-            
-            const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
-            
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            
+            const fd = new FormData();
+            for (let i = 0; i < files.length; i++) fd.append('file', files[i]);
+            const pw = document.getElementById('progress-wrap');
+            const pf = document.getElementById('progress-fill');
+            pw.style.display = 'block'; pf.style.width = '0%';
+
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/upload-to-phone', true);
-            
             xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const percent = (e.loaded / e.total) * 100;
-                    progressBar.style.width = percent + '%';
-                }
+                if (e.lengthComputable) pf.style.width = ((e.loaded / e.total) * 100) + '%';
             };
-            
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    showToast('File(s) uploaded successfully', 'success');
-                    progressBar.style.width = '100%';
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        progressBar.style.width = '0%';
-                        fetchFiles(); // Refresh file list after upload
-                    }, 1000);
+                    showToast('File uploaded!', 'success');
+                    addLog('File uploaded: ' + files[0].name, 'green');
+                    pf.style.width = '100%';
+                    setTimeout(() => { pw.style.display = 'none'; pf.style.width = '0%'; fetchFiles(); }, 800);
                 } else {
                     showToast('Upload failed', 'error');
-                    progressContainer.style.display = 'none';
+                    pw.style.display = 'none';
                 }
             };
-            
-            xhr.onerror = () => {
-                showToast('Upload failed', 'error');
-                progressContainer.style.display = 'none';
-            };
-            
-            xhr.send(formData);
+            xhr.onerror = () => { showToast('Upload failed', 'error'); pw.style.display = 'none'; };
+            xhr.send(fd);
         }
 
-        // Setup Drag & Drop
-        const uploadZone = document.getElementById('upload-zone');
-        const fileInput = document.getElementById('file-input');
-        
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-        
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, preventDefaults, false);
-        });
-        
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
-        });
-        
-        uploadZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        });
+        const uz = document.getElementById('upload-zone');
+        const fi = document.getElementById('file-input');
+        fi.addEventListener('change', e => handleFiles(e.target.files));
+        ['dragenter','dragover','dragleave','drop'].forEach(ev => uz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false));
+        ['dragenter','dragover'].forEach(ev => uz.addEventListener(ev, () => uz.classList.add('dragover'), false));
+        ['dragleave','drop'].forEach(ev => uz.addEventListener(ev, () => uz.classList.remove('dragover'), false));
+        uz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
 
-        // Performance Charts Setup
+        // ─── Performance Charts ───
         let cpuChart, ramChart;
-        
+
         function initCharts() {
-            Chart.defaults.color = '#a1a1aa';
+            Chart.defaults.color = '#6b6b80';
             Chart.defaults.font.family = 'Inter';
-            
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
+            Chart.defaults.font.size = 11;
+            const pts = 30;
+
+            const sharedOpts = {
+                responsive: true, maintainAspectRatio: false,
                 animation: { duration: 0 },
+                interaction: { mode: 'index', intersect: false },
                 scales: {
                     x: { display: false },
-                    y: { min: 0, max: 100, border: { dash: [4, 4] }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    y: {
+                        min: 0, max: 100,
+                        ticks: { callback: v => v + '%', maxTicksLimit: 5 },
+                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                        border: { display: false }
+                    }
                 },
-                plugins: { legend: { display: false } },
-                elements: { point: { radius: 0 }, line: { tension: 0.4 } }
+                plugins: { legend: { display: false }, tooltip: { enabled: true, backgroundColor: '#1a1a2e', titleColor: '#f0f0f5', bodyColor: '#a1a1aa', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 } },
+                elements: { point: { radius: 0, hoverRadius: 4 }, line: { tension: 0.4, borderWidth: 2 } }
             };
 
-            const ctxCpu = document.getElementById('cpuChart').getContext('2d');
-            cpuChart = new Chart(ctxCpu, {
+            cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: Array(20).fill(''),
+                    labels: Array(pts).fill(''),
                     datasets: [{
-                        label: 'CPU Usage %',
-                        data: Array(20).fill(0),
+                        label: 'CPU %',
+                        data: Array(pts).fill(0),
                         borderColor: '#00d4ff',
-                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                        fill: true,
-                        borderWidth: 2
+                        backgroundColor: (ctx) => {
+                            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 220);
+                            g.addColorStop(0, 'rgba(0, 212, 255, 0.15)'); g.addColorStop(1, 'rgba(0, 212, 255, 0)');
+                            return g;
+                        },
+                        fill: true
                     }]
                 },
-                options: { ...commonOptions, plugins: { title: { display: true, text: 'CPU Usage (%)', color: '#f8f8f2' }, legend: { display: false } } }
+                options: sharedOpts
             });
 
-            const ctxRam = document.getElementById('ramChart').getContext('2d');
-            ramChart = new Chart(ctxRam, {
+            ramChart = new Chart(document.getElementById('ramChart').getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: Array(20).fill(''),
+                    labels: Array(pts).fill(''),
                     datasets: [{
-                        label: 'RAM Usage %',
-                        data: Array(20).fill(0),
+                        label: 'RAM %',
+                        data: Array(pts).fill(0),
                         borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                        fill: true,
-                        borderWidth: 2
+                        backgroundColor: (ctx) => {
+                            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 220);
+                            g.addColorStop(0, 'rgba(139, 92, 246, 0.15)'); g.addColorStop(1, 'rgba(139, 92, 246, 0)');
+                            return g;
+                        },
+                        fill: true
                     }]
                 },
-                options: { ...commonOptions, plugins: { title: { display: true, text: 'RAM Usage (%)', color: '#f8f8f2' }, legend: { display: false } } }
+                options: sharedOpts
             });
         }
 
@@ -799,33 +725,74 @@
             try {
                 const res = await fetch('/api/stats');
                 if (!res.ok) return;
-                const data = await res.json();
-                
-                // Update CPU Chart
-                cpuChart.data.datasets[0].data.push(data.cpu_percent);
+                const d = await res.json();
+
+                // Update stat cards
+                document.getElementById('cpu-val').textContent = Math.round(d.cpu_percent) + '%';
+                document.getElementById('ram-val').textContent = Math.round(d.mem_percent) + '%';
+                document.getElementById('cpu-bar').style.width = d.cpu_percent + '%';
+                document.getElementById('ram-bar').style.width = d.mem_percent + '%';
+
+                // Update charts
+                cpuChart.data.datasets[0].data.push(d.cpu_percent);
                 cpuChart.data.datasets[0].data.shift();
                 cpuChart.update();
-                
-                // Update RAM Chart
-                ramChart.data.datasets[0].data.push(data.mem_percent);
+
+                ramChart.data.datasets[0].data.push(d.mem_percent);
                 ramChart.data.datasets[0].data.shift();
                 ramChart.update();
-                
-            } catch (err) {
-                // fail silently for telemetry
-            }
+            } catch (e) { /* silent */ }
         }
 
-        // Initialization & Intervals
+        // ─── SSE (Server-Sent Events) for real-time updates ───
+        function connectSSE() {
+            const es = new EventSource('/api/events');
+
+            es.addEventListener('file_update', (e) => {
+                fetchFiles();
+                addLog('Files updated', 'blue');
+            });
+
+            es.addEventListener('clipboard_update', (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    const ta = document.getElementById('clipboard-text');
+                    if (document.activeElement !== ta) ta.value = data.text || '';
+                    addLog('Clipboard updated from laptop', 'violet');
+                } catch (err) {
+                    fetchClipboard();
+                }
+            });
+
+            es.addEventListener('phone_connected', (e) => {
+                addLog('Phone connected', 'green');
+                showToast('Phone connected!', 'success');
+            });
+
+            es.addEventListener('phone_disconnected', (e) => {
+                addLog('Phone disconnected', 'blue');
+            });
+
+            es.onerror = () => {
+                es.close();
+                // Reconnect after 3s
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        // ─── Init ───
         document.addEventListener('DOMContentLoaded', () => {
             initCharts();
             fetchInfo();
             fetchFiles();
             fetchClipboard();
-            
-            setInterval(fetchStats, 1000); // 1s
-            setInterval(fetchFiles, 10000); // 10s
-            setInterval(fetchClipboard, 5000); // 5s
+            connectSSE();
+
+            // Stats polling (1s) - lightweight
+            setInterval(fetchStats, 1000);
+            // Fallback polling for files/clipboard (30s) in case SSE drops
+            setInterval(fetchFiles, 30000);
+            setInterval(fetchClipboard, 30000);
         });
     </script>
 </body>

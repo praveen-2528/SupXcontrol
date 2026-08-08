@@ -3,13 +3,14 @@ import struct
 import json
 import io
 import os
+import asyncio
 import qrcode
 import webbrowser
 import random
 import psutil
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse
@@ -17,6 +18,21 @@ import uvicorn
 
 from config import HOST, PORT
 from input_controller import InputController
+
+# ── SSE (Server-Sent Events) infrastructure ──
+# Each connected portal browser gets its own asyncio.Queue
+sse_clients: list[asyncio.Queue] = []
+
+def broadcast_event(event_type: str, data: str = ""):
+    """Push an SSE event to all connected portal browsers."""
+    for q in sse_clients:
+        try:
+            q.put_nowait({"event": event_type, "data": data})
+        except asyncio.QueueFull:
+            pass  # drop if client is too slow
+
+# Track last known clipboard to detect changes
+_last_clipboard_text = ""
 
 app = FastAPI(title="SuperXontrol Server")
 
@@ -56,6 +72,29 @@ async def startup_event():
         webbrowser.open(f"{server_url}/connect")
     except:
         pass
+    # Start background clipboard watcher
+    asyncio.create_task(clipboard_watcher())
+
+async def clipboard_watcher():
+    """Background task: poll laptop clipboard every 1.5s, broadcast changes."""
+    global _last_clipboard_text, connected_phone
+    while True:
+        try:
+            await asyncio.sleep(1.5)
+            current = input_controller.get_clipboard() or ""
+            if current and current != _last_clipboard_text:
+                _last_clipboard_text = current
+                # Push to portal via SSE
+                broadcast_event("clipboard_update", json.dumps({"text": current}))
+                # Push to phone via WebSocket (0x0C)
+                if connected_phone:
+                    try:
+                        encoded = current.encode('utf-8')
+                        await connected_phone.send_bytes(bytes([0x0C]) + encoded)
+                    except:
+                        pass
+        except Exception:
+            await asyncio.sleep(3)
 
 @app.get("/qr")
 async def get_qr_code():
@@ -97,6 +136,33 @@ async def get_stats():
         }
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/events")
+async def sse_endpoint(request: Request):
+    """Server-Sent Events stream for real-time portal updates."""
+    queue = asyncio.Queue(maxsize=50)
+    sse_clients.append(queue)
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"event: {msg['event']}\ndata: {msg['data']}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive comment
+                    yield ": keepalive\n\n"
+        finally:
+            if queue in sse_clients:
+                sse_clients.remove(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+    )
 
 @app.get("/connect")
 async def connect_page():
@@ -211,6 +277,9 @@ async def upload_to_phone(file: UploadFile = File(...)):
         
         print(f"  [portal] File uploaded: {fname} ({len(content)} bytes)")
         
+        # Broadcast file update to portal SSE
+        broadcast_event("file_update", json.dumps({"filename": fname}))
+        
         # Notify connected phone via WebSocket
         if connected_phone:
             try:
@@ -233,21 +302,24 @@ async def get_clipboard():
         return {"text": "", "error": str(e)}
 
 @app.post("/api/clipboard")
-async def set_clipboard_api():
+async def set_clipboard_post(request: Request):
     """Set clipboard from portal. Expects JSON body with 'text' field."""
-    import sys
-    from starlette.requests import Request
-    # This is a workaround - we need the raw request
-    return {"status": "ok"}
-
-# Override with proper request handling
-@app.api_route("/api/clipboard", methods=["POST"])
-async def set_clipboard_post(request):
+    global _last_clipboard_text
     try:
         body = await request.json()
         text = body.get("text", "")
         input_controller.set_clipboard(text)
+        _last_clipboard_text = text  # prevent watcher from re-broadcasting
         print(f"  [portal] Clipboard set: '{text[:50]}...'")
+        
+        # Push to phone
+        if connected_phone:
+            try:
+                encoded = text.encode('utf-8')
+                await connected_phone.send_bytes(bytes([0x0C]) + encoded)
+            except:
+                pass
+        
         return {"status": "ok"}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -269,6 +341,7 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
 
     print(f"  [+] Client authenticated and connected from {client_host}")
     connected_phone = websocket
+    broadcast_event("phone_connected", "")
     try:
         await websocket.send_bytes(struct.pack('>BB', 0xFE, 0x00)) # 0x00 = ok
         print(f"  [+] Sent connection ack to {client_host}")
@@ -381,6 +454,8 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
                         text = data[1:].decode('utf-8')
                         print(f"  [clipboard] PUSH: '{text[:50]}...' ({len(text)} chars)")
                         input_controller.set_clipboard(text)
+                        _last_clipboard_text = text  # prevent watcher from re-broadcasting
+                        broadcast_event("clipboard_update", json.dumps({"text": text}))
                         await websocket.send_bytes(struct.pack('>BB', 0x06, 7)) # clipboard haptic
                     except Exception as e:
                         print(f"  [!] Clipboard push error: {e}")
@@ -444,6 +519,7 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
                             file_handle.close()
                             file_handle = None
                             print(f"  [file] COMPLETE: {file_name}")
+                            broadcast_event("file_update", json.dumps({"filename": os.path.basename(file_name)}))
                             try:
                                 await websocket.send_bytes(struct.pack('>BB', 0x12, 0x00)) # success ack
                             except:
@@ -473,6 +549,7 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
     finally:
         if connected_phone == websocket:
             connected_phone = None
+            broadcast_event("phone_disconnected", "")
         if file_handle:
             file_handle.close()
 
