@@ -6,6 +6,7 @@ import os
 import qrcode
 import webbrowser
 import random
+import psutil
 from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile
@@ -49,7 +50,7 @@ async def startup_event():
     print(f"  [*] SuperXontrol Server Started!")
     print(f"  [>] Connect here: {server_url}/connect")
     print(f"  [i] Make sure your phone is on the same Wi-Fi network.")
-    print(f"  [🔑] YOUR PIN CODE IS: {SERVER_PIN}")
+    print(f"  [KEY] YOUR PIN CODE IS: {SERVER_PIN}")
     print(f"="*50 + "\n")
     try:
         webbrowser.open(f"{server_url}/connect")
@@ -80,6 +81,22 @@ async def get_info():
         "url": server_url,
         "hostname": socket.gethostname()
     }
+
+@app.get("/api/stats")
+async def get_stats():
+    """Return current system performance stats (CPU, RAM)."""
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        mem = psutil.virtual_memory()
+        
+        return {
+            "cpu_percent": cpu_percent,
+            "mem_percent": mem.percent,
+            "mem_used": mem.used,
+            "mem_total": mem.total
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/connect")
 async def connect_page():
@@ -454,7 +471,6 @@ async def websocket_endpoint(websocket: WebSocket, pin: str = None):
     except Exception as e:
         print(f"  [!] WebSocket error: {e}")
     finally:
-        global connected_phone
         if connected_phone == websocket:
             connected_phone = None
         if file_handle:

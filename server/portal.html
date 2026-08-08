@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SuperXontrol</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #0a0a0f;
@@ -448,6 +449,23 @@
         </div>
     </header>
 
+    <!-- Performance Graphs -->
+    <section class="container" style="padding-bottom: 0;">
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h2 class="card-title">📈 System Performance</h2>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div style="position: relative; height: 200px;">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="ramChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <main class="container">
         <!-- Shared Files Card -->
         <div class="card">
@@ -723,12 +741,89 @@
             handleFiles(files);
         });
 
+        // Performance Charts Setup
+        let cpuChart, ramChart;
+        
+        function initCharts() {
+            Chart.defaults.color = '#a1a1aa';
+            Chart.defaults.font.family = 'Inter';
+            
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                scales: {
+                    x: { display: false },
+                    y: { min: 0, max: 100, border: { dash: [4, 4] }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                },
+                plugins: { legend: { display: false } },
+                elements: { point: { radius: 0 }, line: { tension: 0.4 } }
+            };
+
+            const ctxCpu = document.getElementById('cpuChart').getContext('2d');
+            cpuChart = new Chart(ctxCpu, {
+                type: 'line',
+                data: {
+                    labels: Array(20).fill(''),
+                    datasets: [{
+                        label: 'CPU Usage %',
+                        data: Array(20).fill(0),
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        fill: true,
+                        borderWidth: 2
+                    }]
+                },
+                options: { ...commonOptions, plugins: { title: { display: true, text: 'CPU Usage (%)', color: '#f8f8f2' }, legend: { display: false } } }
+            });
+
+            const ctxRam = document.getElementById('ramChart').getContext('2d');
+            ramChart = new Chart(ctxRam, {
+                type: 'line',
+                data: {
+                    labels: Array(20).fill(''),
+                    datasets: [{
+                        label: 'RAM Usage %',
+                        data: Array(20).fill(0),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: true,
+                        borderWidth: 2
+                    }]
+                },
+                options: { ...commonOptions, plugins: { title: { display: true, text: 'RAM Usage (%)', color: '#f8f8f2' }, legend: { display: false } } }
+            });
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Update CPU Chart
+                cpuChart.data.datasets[0].data.push(data.cpu_percent);
+                cpuChart.data.datasets[0].data.shift();
+                cpuChart.update();
+                
+                // Update RAM Chart
+                ramChart.data.datasets[0].data.push(data.mem_percent);
+                ramChart.data.datasets[0].data.shift();
+                ramChart.update();
+                
+            } catch (err) {
+                // fail silently for telemetry
+            }
+        }
+
         // Initialization & Intervals
         document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
             fetchInfo();
             fetchFiles();
             fetchClipboard();
             
+            setInterval(fetchStats, 1000); // 1s
             setInterval(fetchFiles, 10000); // 10s
             setInterval(fetchClipboard, 5000); // 5s
         });
